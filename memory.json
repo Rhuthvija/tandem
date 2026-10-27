@@ -1,0 +1,59 @@
+{
+  "events": [
+    {
+      "title": "Client presentation",
+      "date": "2026-10-29",
+      "kind": "work"
+    },
+    {
+      "title": "Sister's birthday",
+      "date": "2026-11-01",
+      "kind": "personal"
+    }
+  ],
+  "tasks": [
+    {
+      "date": "2026-10-27",
+      "for_event": "Client presentation",
+      "time": "10:00",
+      "title": "Outline key points for client presentation",
+      "done": false
+    },
+    {
+      "date": "2026-10-27",
+      "for_event": "Sister's birthday",
+      "time": "18:00",
+      "title": "Brainstorm gift ideas for sister",
+      "done": false
+    },
+    {
+      "date": "2026-10-28",
+      "for_event": "Client presentation",
+      "time": "09:30",
+      "title": "Build draft slides for client presentation",
+      "done": false
+    },
+    {
+      "date": "2026-10-28",
+      "for_event": "Sister's birthday",
+      "time": "17:30",
+      "title": "Buy birthday gift for sister",
+      "done": false
+    },
+    {
+      "date": "2026-10-29",
+      "for_event": "Client presentation",
+      "time": "08:30",
+      "title": "Rehearse and polish client presentation",
+      "done": false
+    },
+    {
+      "date": "2026-10-31",
+      "for_event": "Sister's birthday",
+      "time": "11:00",
+      "title": "Wrap gift and write birthday card for sister",
+      "done": false
+    }
+  ],
+  "last_nudge": "2026-10-27"
+}
