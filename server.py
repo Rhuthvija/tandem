@@ -1,5 +1,6 @@
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
+import os, json, requests
 from pydantic import BaseModel
 import agent
 
@@ -14,7 +15,27 @@ def chat(body: ChatIn):
     global history
     reply, history = agent.chat(body.message, history)
     return {"reply": reply}
-
+@app.post("/voice")
+async def voice(audio: UploadFile = File(...)):
+    wav = await audio.read()
+    r = requests.post(
+        "https://api.meta.ai/v1/asr/transcribe",
+        headers={"Authorization": f"Bearer {os.environ['MODEL_API_KEY']}", "Accept": "text/plain"},
+        files={
+            "request": (None, json.dumps({"model": "muse-voice-transcribe-1.0",
+                                          "audioEncoding": "WAV", "mode": "PUSH_TO_TALK"}), "application/json"),
+            "audio": ("speech.wav", wav, "audio/wav"),
+        },
+        timeout=60,
+    )
+    if r.status_code != 200:
+        raise HTTPException(502, f"Transcription failed: {r.text[:200]}")
+    heard = " ".join(line.strip() for line in r.text.splitlines() if line.strip())
+    if not heard:
+        return {"heard": "", "reply": "I didn't catch that. Try again?"}
+    global history
+    reply, history = agent.chat(heard, history)
+    return {"heard": heard, "reply": reply}
 @app.get("/today")
 @app.get("/today")
 def today():

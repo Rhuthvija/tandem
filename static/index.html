@@ -84,6 +84,10 @@
   .took button { flex:1; font:inherit; font-size:13px; font-weight:600; padding:12px 6px; border-radius:12px; border:1.5px solid #DCD6EC; background:#fff; cursor:pointer; color:var(--ink); }
   .took button:hover { border-color:var(--brand); }
   .skip { background:none; border:none; font:inherit; color:var(--muted); cursor:pointer; padding:6px; }
+  .mic { width:44px; height:44px; border-radius:22px; border:none; background:var(--brand-soft); font-size:18px; cursor:pointer; flex-shrink:0; }
+  .mic.rec { background:#E5484D; animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { transform:scale(1.1); } }
+  .heard { font-size:12px; color:var(--muted); margin-bottom:6px; font-style:italic; }
 </style>
 </head>
 <body>
@@ -130,6 +134,8 @@
   <form class="inputrow" id="form">
     <label for="msg" style="position:absolute;left:-9999px">Message Tandem</label>
     <input id="msg" placeholder="Tell Tandem anything…" autocomplete="off">
+    
+    <button class="mic" id="mic" aria-label="Speak">🎤</button>
     <button class="send" id="send" aria-label="Send">➤</button>
   </form>
 </div>
@@ -326,7 +332,63 @@ $("form").onsubmit = async e => {
   } catch { $("reply").textContent = "Couldn't reach Tandem. Is the server running?"; }
   $("send").disabled = false;
 };
+/* ---------------- VOICE ---------------- */
+let audioCtx, source, processor, stream, chunks = [], recording = false;
 
+async function startRec() {
+  stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  audioCtx = new AudioContext({ sampleRate: 16000 });
+  source = audioCtx.createMediaStreamSource(stream);
+  processor = audioCtx.createScriptProcessor(4096, 1, 1);
+  chunks = [];
+  processor.onaudioprocess = e => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  source.connect(processor); processor.connect(audioCtx.destination);
+}
+
+function stopRec() {
+  processor.disconnect(); source.disconnect(); stream.getTracks().forEach(t => t.stop());
+  const rate = audioCtx.sampleRate; audioCtx.close();
+  return encodeWav(chunks, rate);
+}
+
+function encodeWav(parts, rate) {
+  const len = parts.reduce((n, c) => n + c.length, 0);
+  const buf = new ArrayBuffer(44 + len * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + len * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, len * 2, true);
+  let o = 44;
+  for (const c of parts) for (let i = 0; i < c.length; i++, o += 2) {
+    const s = Math.max(-1, Math.min(1, c[i])); v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+function showReply(t) { $("reply").textContent = t; $("reply").classList.add("show"); }
+
+$("mic").onclick = async () => {
+  if (!recording) {
+    try { await startRec(); } catch { showReply("I need microphone access to hear you 🎙️"); return; }
+    recording = true; $("mic").classList.add("rec");
+    showReply("Listening… tap the mic again when you're done");
+  } else {
+    recording = false; $("mic").classList.remove("rec");
+    const wav = stopRec();
+    showReply("Got it, thinking…");
+    const fd = new FormData(); fd.append("audio", wav, "speech.wav");
+    try {
+      const res = await fetch("/voice", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "error");
+      $("reply").innerHTML = "";
+      if (data.heard) $("reply").append(el("div", "heard", `You said: "${data.heard}"`));
+      $("reply").append(el("div", null, "🤝 " + data.reply));
+      load();
+    } catch (err) { showReply("Voice didn't go through: " + err.message); }
+  }
+};
 /* ---------------- START ---------------- */
 (async () => {
   profile = (await (await fetch("/profile")).json()).profile;
