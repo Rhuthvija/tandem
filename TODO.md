@@ -13,7 +13,7 @@
 ## UI/UX (Nov 1–3)
 - [ ] MCQ onboarding starting with "what fills your days?"
 - [ ] Opening animation + paper otter mascot with expressions (Muse Image + SAM 3.1)
-- [ ] Big "Tandem says" reply card, especially on phone
+- [ ] Replace bottom reply bubble with a visual "day map": tasks as stops on a timeline, new/changed ones slide in + glow, Tandem's note pinned next to the change, full chat in a pull-up sheet
 - [ ] Laptop dashboard layout (focus timer top-left, plan, calendar, Tandem panel)
 - [ ] Floating mini window (Next up + timer)
 
