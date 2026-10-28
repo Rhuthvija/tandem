@@ -1,13 +1,13 @@
 from dotenv import load_dotenv
 load_dotenv()
-import os, json
+import os, json, base64, urllib.request
 from datetime import datetime
 from openai import OpenAI
 
 client = OpenAI(base_url="https://api.meta.ai/v1", api_key=os.environ["MODEL_API_KEY"])
 MODEL = "muse-spark-1.3"
 MEMORY = "memory.json"
-EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "last_nudge": None}
+EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "cards": {}, "last_nudge": None}
 def load_mem():
     base = json.loads(json.dumps(EMPTY))
     if os.path.exists(MEMORY):
@@ -68,6 +68,8 @@ def system_prompt():
     today = now.strftime("%Y-%m-%d")
     upcoming = [t for t in mem["tasks"] if t["date"] >= today]
     profile = mem.get("profile") or {}
+    past = sorted(d for d in mem.get("cards", {}) if d < today)
+    last_lesson = mem["cards"][past[-1]]["lesson"] if past else "none yet"
     per_day = profile.get("per_day", 3)
     return f"""You are Tandem, a warm, down-to-earth planning partner who plans the day WITH the user.
 Now: {now:%A %Y-%m-%d %H:%M}
@@ -76,6 +78,7 @@ Fixed routine: {mem['routine'] or 'unknown'}
 Events: {json.dumps(mem['events'])}
 Daily habits: {json.dumps(mem['habits'])}
 Planned tasks from today: {json.dumps(upcoming)}
+Yesterday's lesson (from their reflection): {last_lesson}
 
 Rules:
 - Event with a clear date: call add_event, then add_tasks to break it into small tasks (under 90 min) from now until the event.
@@ -85,9 +88,43 @@ Rules:
 - Work out relative dates yourself (tomorrow, day after, this Friday). Only ask when a date is truly unknown.
 - If the user describes their routine, call set_routine first.
 - Use their name sometimes. Reply in 1-3 short, warm sentences, like a friend, not an assistant.
+- When planning, quietly apply yesterday's lesson if it's relevant.
 - For deadlines, aim to finish a day early for breathing room and mention it in one line.
 - When the user adds a to-do, confirm where you put it. Only sometimes, when genuinely useful, add a one-line tip on how to tackle it."""
+def make_day_card(date, done, missed, went_well, got_in_way, mood):
+    name = (mem.get("profile") or {}).get("name", "the user")
+    prompt = f"""Write today's day card for {name}.
+Date: {date}
+Done: {json.dumps(done)}
+Not done: {json.dumps(missed)}
+What went well (their words): {went_well}
+What got in the way (their words): {got_in_way or 'nothing mentioned'}
+Mood: {mood}
 
+Return ONLY JSON with these keys:
+"title": a warm, slightly playful chapter-style title for the day (max 7 words)
+"lesson": one lesson for tomorrow based on what they said, in plain words (max 18 words)
+"note": one encouraging line from Tandem, honest, not cheesy (max 20 words)
+"scene": a cosy visual scene that captures the day, for an illustration (max 25 words)"""
+    resp = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": prompt}])
+    text = resp.choices[0].message.content
+    return json.loads(text[text.find("{"): text.rfind("}") + 1])
+
+def paint_card(scene, path):
+    try:
+        result = client.images.generate(model="muse-image-1.0", prompt=(
+            "Handmade paper cut-out illustration made of layered torn construction paper, visible paper grain, "
+            "soft lilac and warm orange palette, cosy and calm, no text. Scene: " + scene))
+        img = result.data[0]
+        if getattr(img, "b64_json", None):
+            with open(path, "wb") as f:
+                f.write(base64.b64decode(img.b64_json))
+        else:
+            urllib.request.urlretrieve(img.url, path)
+        return True
+    except Exception as e:
+        print("Card art failed:", e)
+        return False
 def chat(user_text, history):
     today = datetime.now().strftime("%Y-%m-%d")
     first_today = mem["last_nudge"] != today

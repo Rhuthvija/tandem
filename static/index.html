@@ -88,6 +88,22 @@
   .mic.rec { background:#E5484D; animation:pulse 1s infinite; }
   @keyframes pulse { 50% { transform:scale(1.1); } }
   .heard { font-size:12px; color:var(--muted); margin-bottom:6px; font-style:italic; }
+  .wrap { width:100%; margin-top:18px; font:inherit; font-size:15px; font-weight:700; padding:14px; border-radius:16px; border:1.5px dashed #C9C0EA; background:var(--brand-soft); color:var(--brand); cursor:pointer; }
+  .sheet { background:var(--card); border-radius:24px; padding:24px 20px; max-width:400px; width:100%; display:flex; flex-direction:column; gap:12px; max-height:90vh; overflow-y:auto; }
+  .sheet h2 { font-size:22px; }
+  .sheet label { font-size:14px; font-weight:700; display:flex; flex-direction:column; gap:6px; }
+  .sheet textarea { font:inherit; font-size:15px; padding:12px; border-radius:12px; border:1px solid #DCD6EC; min-height:70px; resize:vertical; }
+  .moods { display:flex; gap:8px; flex-wrap:wrap; }
+  .moods button { font:inherit; font-size:14px; font-weight:600; padding:10px 12px; border-radius:12px; border:1.5px solid #DCD6EC; background:#fff; cursor:pointer; color:var(--ink); }
+  .moods button.picked { border-color:var(--brand); background:var(--brand-soft); }
+  .daycard { background:var(--card); border-radius:24px; overflow:hidden; max-width:380px; width:100%; max-height:92vh; overflow-y:auto; }
+  .daycard img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:var(--brand-soft); }
+  .daycard .body { padding:18px 20px 20px; display:flex; flex-direction:column; gap:8px; }
+  .daycard .meta { font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.04em; }
+  .daycard h2 { font-size:24px; }
+  .daycard .lesson { background:var(--warm-soft); color:#7A3A0E; padding:10px 12px; border-radius:12px; font-size:14px; }
+  .daycard .note { font-size:14px; color:var(--muted); margin:0; }
+  .daycard .streak { font-weight:700; font-size:14px; }
 </style>
 </head>
 <body>
@@ -126,6 +142,7 @@
     <div class="plan-head"><h2>Today's plan</h2><span class="status" id="status"></span></div>
     <div class="bar"><div id="bar" style="width:0%"></div></div>
     <div id="list"></div>
+    <button class="wrap" id="wrapBtn">🌙 Wrap up my day</button>
   </section>
 </div>
 
@@ -153,6 +170,38 @@
       </div>
     </div>
     <button class="skip" id="ccSkip">Skip</button>
+  </div>
+</div>
+<div class="modal" id="reflectModal" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="rTitle">
+    <h2 id="rTitle">How did today go? 🌙</h2>
+    <p id="rSummary" style="margin:0;color:var(--muted);font-size:14px"></p>
+    <label>What went well?<textarea id="rWell" placeholder="even small things count"></textarea></label>
+    <label>What got in the way? <span style="font-weight:500;color:var(--muted)">(optional)</span><textarea id="rWay" placeholder="no judgement here"></textarea></label>
+    <div style="font-size:14px;font-weight:700">How are you feeling?</div>
+    <div class="moods">
+      <button type="button" data-mood="proud">🔥 Proud</button>
+      <button type="button" data-mood="calm">😌 Calm</button>
+      <button type="button" data-mood="okay">🙂 Okay</button>
+      <button type="button" data-mood="drained">😮‍💨 Drained</button>
+    </div>
+    <div class="error" id="rErr"></div>
+    <button class="primary" id="rSave">Make my day card</button>
+    <button class="skip" id="rCancel">Not now</button>
+  </div>
+</div>
+
+<div class="modal" id="cardModal" hidden>
+  <div class="daycard" role="dialog" aria-labelledby="dcTitle">
+    <img id="dcImg" alt="Illustration of your day">
+    <div class="body">
+      <div class="meta" id="dcMeta"></div>
+      <h2 id="dcTitle"></h2>
+      <div class="lesson" id="dcLesson"></div>
+      <p class="note" id="dcNote"></p>
+      <div class="streak" id="dcStreak"></div>
+      <button class="primary" id="dcClose">Good night 🌙</button>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -389,6 +438,45 @@ $("mic").onclick = async () => {
     } catch (err) { showReply("Voice didn't go through: " + err.message); }
   }
 };
+/* ---------------- EVENING REFLECTION ---------------- */
+let mood = "";
+document.querySelectorAll("[data-mood]").forEach(b => b.onclick = () => {
+  mood = b.dataset.mood;
+  document.querySelectorAll("[data-mood]").forEach(x => x.classList.toggle("picked", x === b));
+  $("rErr").textContent = "";
+});
+$("wrapBtn").onclick = () => {
+  const s = $("status").textContent;
+  $("rSummary").textContent = s ? `You got ${s} today.` : "Let's look back on today.";
+  $("rErr").textContent = ""; $("reflectModal").hidden = false; $("rWell").focus();
+};
+$("rCancel").onclick = () => $("reflectModal").hidden = true;
+$("rWell").oninput = () => $("rErr").textContent = "";
+$("rSave").onclick = async () => {
+  if (!$("rWell").value.trim()) { $("rErr").textContent = "Write at least one thing that went well, even a tiny one"; return; }
+  if (!mood) { $("rErr").textContent = "Pick how you're feeling"; return; }
+  $("rSave").disabled = true; $("rSave").textContent = "Painting your day card… 🎨";
+  try {
+    const res = await fetch("/reflect", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ went_well: $("rWell").value.trim(), got_in_way: $("rWay").value.trim(), mood }) });
+    const card = await res.json();
+    if (!res.ok) throw new Error(card.detail || "error");
+    $("reflectModal").hidden = true;
+    showCard(card);
+  } catch (err) { $("rErr").textContent = "Couldn't make the card: " + err.message; }
+  $("rSave").disabled = false; $("rSave").textContent = "Make my day card";
+};
+function showCard(c) {
+  $("dcImg").style.display = c.image ? "block" : "none";
+  if (c.image) $("dcImg").src = c.image + "?v=" + Date.now();
+  $("dcMeta").textContent = `${fmtDate(c.date).toUpperCase()} · ${c.done} OF ${c.total} DONE`;
+  $("dcTitle").textContent = c.title;
+  $("dcLesson").textContent = "💡 " + c.lesson;
+  $("dcNote").textContent = c.note;
+  $("dcStreak").textContent = c.streak > 1 ? `🔥 ${c.streak}-day reflection streak` : "🌱 Day 1 of your reflection streak";
+  $("cardModal").hidden = false;
+}
+$("dcClose").onclick = () => $("cardModal").hidden = true;
 /* ---------------- START ---------------- */
 (async () => {
   profile = (await (await fetch("/profile")).json()).profile;
