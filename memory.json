@@ -1,59 +1,88 @@
 {
+  "routine": "Weekdays: college 08:30-16:00, Japanese class 17:20-20:30, internship 21:00-00:00",
   "events": [
     {
-      "title": "Client presentation",
+      "title": "internal",
       "date": "2026-10-29",
-      "kind": "work"
+      "kind": "exam"
     },
     {
-      "title": "Sister's birthday",
-      "date": "2026-11-01",
-      "kind": "personal"
+      "title": "hackathon",
+      "date": "2026-11-04",
+      "kind": "other"
     }
   ],
   "tasks": [
     {
-      "date": "2026-10-27",
-      "for_event": "Client presentation",
-      "time": "10:00",
-      "title": "Outline key points for client presentation",
-      "done": false
-    },
-    {
-      "date": "2026-10-27",
-      "for_event": "Sister's birthday",
-      "time": "18:00",
-      "title": "Brainstorm gift ideas for sister",
-      "done": false
-    },
-    {
       "date": "2026-10-28",
-      "for_event": "Client presentation",
-      "time": "09:30",
-      "title": "Build draft slides for client presentation",
-      "done": false
-    },
-    {
-      "date": "2026-10-28",
-      "for_event": "Sister's birthday",
-      "time": "17:30",
-      "title": "Buy birthday gift for sister",
+      "for_event": "internal",
+      "time": "20:30",
+      "title": "Quick revise key points for internal",
       "done": false
     },
     {
       "date": "2026-10-29",
-      "for_event": "Client presentation",
-      "time": "08:30",
-      "title": "Rehearse and polish client presentation",
+      "for_event": "internal",
+      "time": "06:30",
+      "title": "Morning practice for internal",
+      "done": false
+    },
+    {
+      "date": "2026-10-29",
+      "for_event": "hackathon",
+      "time": "20:30",
+      "title": "Hackathon setup and plan",
+      "done": false
+    },
+    {
+      "date": "2026-10-30",
+      "for_event": "hackathon",
+      "time": "07:00",
+      "title": "Hackathon build session 1",
+      "done": false
+    },
+    {
+      "date": "2026-10-30",
+      "for_event": "hackathon",
+      "time": "20:30",
+      "title": "Hackathon build session 2",
       "done": false
     },
     {
       "date": "2026-10-31",
-      "for_event": "Sister's birthday",
-      "time": "11:00",
-      "title": "Wrap gift and write birthday card for sister",
+      "for_event": "hackathon",
+      "time": "10:00",
+      "title": "Hackathon build session 3",
+      "done": false
+    },
+    {
+      "date": "2026-11-01",
+      "for_event": "hackathon",
+      "time": "10:00",
+      "title": "Hackathon polish and test",
+      "done": false
+    },
+    {
+      "date": "2026-11-02",
+      "for_event": "hackathon",
+      "time": "07:00",
+      "title": "Hackathon final fixes",
+      "done": false
+    },
+    {
+      "date": "2026-11-03",
+      "for_event": "hackathon",
+      "time": "07:00",
+      "title": "Hackathon submission prep",
       "done": false
     }
   ],
-  "last_nudge": "2026-10-27"
+  "habits": [
+    {
+      "title": "walk 10k steps",
+      "minutes": 60,
+      "time": "16:15"
+    }
+  ],
+  "last_nudge": "2026-10-28"
 }

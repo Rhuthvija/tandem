@@ -1,0 +1,126 @@
+from dotenv import load_dotenv
+load_dotenv()
+import os, json
+from datetime import datetime
+from openai import OpenAI
+
+client = OpenAI(base_url="https://api.meta.ai/v1", api_key=os.environ["MODEL_API_KEY"])
+MODEL = "muse-spark-1.3"
+MEMORY = "memory.json"
+EMPTY = {"routine": "", "events": [], "tasks": [], "habits": [], "last_nudge": None}
+
+def load_mem():
+    base = json.loads(json.dumps(EMPTY))
+    if os.path.exists(MEMORY):
+        base.update(json.load(open(MEMORY)))
+    return base
+
+mem = load_mem()
+
+def save_mem():
+    json.dump(mem, open(MEMORY, "w"), indent=2)
+
+# ---------- tools Tandem can use ----------
+def set_routine(description):
+    mem["routine"] = description
+    return "Routine saved"
+
+def add_event(title, date, kind):
+    mem["events"].append({"title": title, "date": date, "kind": kind})
+    return f"📅 Event: {title} on {date}"
+
+def add_tasks(tasks):
+    for t in tasks:
+        t["done"] = False
+        mem["tasks"].append(t)
+    return f"📝 Added {len(tasks)} tasks"
+
+def add_habit(title, minutes, time):
+    mem["habits"].append({"title": title, "minutes": minutes, "time": time})
+    return f"🔁 Habit: {title} daily at {time}"
+
+FUNCS = {"set_routine": set_routine, "add_event": add_event, "add_tasks": add_tasks, "add_habit": add_habit}
+
+def fn(name, desc, props, required):
+    return {"type": "function", "function": {"name": name, "description": desc,
+            "parameters": {"type": "object", "properties": props, "required": required}}}
+
+TOOLS = [
+    fn("set_routine", "Save the user's fixed weekly routine (classes, work hours, sleep).",
+       {"description": {"type": "string"}}, ["description"]),
+    fn("add_event", "Add a one-off event with a known date.",
+       {"title": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"},
+        "kind": {"type": "string", "enum": ["exam", "deadline", "work", "personal", "errand", "other"]}},
+       ["title", "date", "kind"]),
+    fn("add_tasks", "Add small tasks that prepare for events.",
+       {"tasks": {"type": "array", "items": {"type": "object", "properties": {
+           "title": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"},
+           "time": {"type": "string", "description": "HH:MM 24h"}, "for_event": {"type": "string"}},
+           "required": ["title", "date", "time", "for_event"]}}},
+       ["tasks"]),
+    fn("add_habit", "Add a recurring daily habit (e.g. walking, reading).",
+       {"title": {"type": "string"}, "minutes": {"type": "integer"},
+        "time": {"type": "string", "description": "HH:MM 24h, in free time"}},
+       ["title", "minutes", "time"]),
+]
+
+def system_prompt():
+    now = datetime.now()
+    today = now.strftime("%Y-%m-%d")
+    upcoming = [t for t in mem["tasks"] if t["date"] >= today]
+    return f"""You are Tandem, a warm, down-to-earth planning partner who plans the day WITH the user.
+Now: {now:%A %Y-%m-%d %H:%M}
+Fixed routine: {mem['routine'] or 'unknown'}
+Events: {json.dumps(mem['events'])}
+Daily habits: {json.dumps(mem['habits'])}
+Planned tasks from today: {json.dumps(upcoming)}
+
+Rules:
+- Event with a clear date: call add_event, then add_tasks to break it into small tasks (under 90 min) from now until the event.
+- Only schedule in FREE time: never inside the fixed routine, never before the current time, max 3 tasks per day, no clashes with existing tasks or habits.
+- Recurring things ("every day", "10k steps") are habits: call add_habit.
+- If a date is missing or vague, DON'T guess: ask about it, and plan it once they answer.
+- If the user describes their routine, call set_routine first.
+- Reply in 1-3 short, warm sentences, like a friend, not an assistant."""
+
+def chat(user_text, history):
+    today = datetime.now().strftime("%Y-%m-%d")
+    first_today = mem["last_nudge"] != today
+    system = system_prompt() + ("\nOnce you're done, ask ONE gentle question to help them remember anything else."
+                                if first_today else "\nDon't ask extra follow-up questions.")
+    messages = [{"role": "system", "content": system}] + history + [{"role": "user", "content": user_text}]
+
+    while True:  # agent loop
+        resp = client.chat.completions.create(model=MODEL, messages=messages, tools=TOOLS)
+        msg = resp.choices[0].message
+        messages.append(msg.model_dump(exclude_none=True))
+        if not msg.tool_calls:
+            break
+        for call in msg.tool_calls:
+            result = FUNCS[call.function.name](**json.loads(call.function.arguments))
+            print("   ", result)
+            messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
+
+    if first_today:
+        mem["last_nudge"] = today
+    save_mem()
+    return msg.content, messages[1:]
+
+def print_today():
+    today = datetime.now().strftime("%Y-%m-%d")
+    items = [(t["time"], t["title"]) for t in mem["tasks"] if t["date"] == today]
+    items += [(h["time"], f"{h['title']} ({h['minutes']} min)") for h in mem["habits"]]
+    print("\n☀️ Today's plan:")
+    for time, title in sorted(items):
+        print(f"  {time}  {title}")
+
+if __name__ == "__main__":
+    history = []
+    print("🤝 Tandem is here. Type 'bye' to finish.\n")
+    while True:
+        text = input("You: ")
+        if text.strip().lower() == "bye":
+            break
+        reply, history = chat(text, history)
+        print(f"\n🤝 Tandem: {reply}\n")
+    print_today()
