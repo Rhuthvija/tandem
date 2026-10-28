@@ -15,6 +15,11 @@
       "title": "Party",
       "date": "2026-10-29",
       "kind": "personal"
+    },
+    {
+      "title": "Make video",
+      "date": "2026-10-28",
+      "kind": "work"
     }
   ],
   "tasks": [
@@ -30,6 +35,20 @@
       "for_event": "Party",
       "time": "19:00",
       "title": "Start getting ready for party",
+      "done": false
+    },
+    {
+      "date": "2026-10-28",
+      "for_event": "Make video",
+      "time": "22:30",
+      "title": "Film video clips",
+      "done": false
+    },
+    {
+      "date": "2026-10-28",
+      "for_event": "Make video",
+      "time": "23:15",
+      "title": "Quick edit video",
       "done": false
     }
   ],
