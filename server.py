@@ -41,9 +41,19 @@ async def voice(audio: UploadFile = File(...)):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class Reflection(BaseModel):
-    went_well: str
-    got_in_way: str = ""
+    went_well: list[str] = []
     mood: str
+    carry_over: bool = True
+
+def week_record():
+    """Tasks + habits done vs planned over the last 7 days."""
+    days = {str(datetime.now().date() - timedelta(days=i)) for i in range(7)}
+    tasks = [t for t in agent.mem["tasks"] if t["date"] in days]
+    log = agent.mem.get("habit_log", {})
+    habit_done = sum(len(v) for d, v in log.items() if d in days)
+    active_days = len({t["date"] for t in tasks} | {d for d in log if d in days}) or 1
+    return {"done": sum(t["done"] for t in tasks) + habit_done,
+            "total": len(tasks) + len(agent.mem["habits"]) * active_days}
 
 def reflection_streak():
     cards = agent.mem.get("cards", {})
@@ -67,14 +77,20 @@ def reflect(body: Reflection):
     done = [t["title"] for t in tasks if t["done"]] + [h["title"] for i, h in enumerate(habits) if i in done_h]
     missed = [t["title"] for t in tasks if not t["done"]] + [h["title"] for i, h in enumerate(habits) if i not in done_h]
 
-    card = agent.make_day_card(d, done, missed, body.went_well, body.got_in_way, body.mood)
+    if body.carry_over:  # unfinished tasks roll over to tomorrow
+        tomorrow = str(datetime.now().date() + timedelta(days=1))
+        for t in tasks:
+            if not t["done"]:
+                t["date"] = tomorrow
+    wins = ", ".join(body.went_well) or "they didn't pick anything, be gentle"
+    card = agent.make_day_card(d, done, missed, wins, "", body.mood)
     os.makedirs("static/cards", exist_ok=True)
     has_art = agent.paint_card(card.get("scene", ""), f"static/cards/{d}.png")
     card.update({"date": d, "mood": body.mood, "done": len(done), "total": len(done) + len(missed),
                  "image": f"/static/cards/{d}.png" if has_art else None})
     agent.mem.setdefault("cards", {})[d] = card
     agent.save_mem()
-    return {**card, "streak": reflection_streak()}
+    return {**card, "streak": reflection_streak(), "week": week_record()}
 
 @app.get("/cards")
 def all_cards():
@@ -96,6 +112,7 @@ def today():
         "upcoming": events,
         "done": sum(t["done"] for t in tasks) + sum(h["done"] for h in habits),
         "total": len(tasks) + len(habits),
+        "reflected": d in agent.mem.get("cards", {}),
     }
 
 @app.post("/tasks/{task_id}/done")
@@ -135,6 +152,8 @@ import json
 class Onboard(BaseModel):
     name: str
     routine: str
+    wake: str = "07:00"
+    sleep: str = "23:00"
     energy: str
     per_day: int
 
@@ -144,7 +163,8 @@ def get_profile():
 
 @app.post("/onboarding")
 def onboarding(body: Onboard):
-    agent.mem["profile"] = {"name": body.name, "energy": body.energy, "per_day": body.per_day}
+    agent.mem["profile"] = {"name": body.name, "wake": body.wake, "sleep": body.sleep,
+                            "energy": body.energy, "per_day": body.per_day}
     agent.mem["routine"] = body.routine
     agent.save_mem()
     return {"ok": True}

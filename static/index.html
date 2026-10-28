@@ -22,6 +22,7 @@
   .section-label { font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.06em; padding:14px 22px 8px; }
   .chips { display:flex; gap:8px; overflow-x:auto; padding:0 22px; scrollbar-width:none; }
   .chip { white-space:nowrap; padding:8px 12px; border-radius:12px; background:var(--card); border:1px solid #DCD6EC; font-size:13px; font-weight:600; }
+  .chip.tbd { border-style:dashed; border-color:#E8B38A; background:var(--warm-soft); color:#7A3A0E; }
   .chip.exam { background:var(--warm-soft); border-color:#F3CFB3; color:#7A3A0E; }
   .next { margin:16px 22px 0; padding:16px; border-radius:20px; background:var(--brand); color:#fff; }
   .next small { font-size:12px; font-weight:700; letter-spacing:.06em; color:#E4DFF7; }
@@ -104,6 +105,10 @@
   .daycard .lesson { background:var(--warm-soft); color:#7A3A0E; padding:10px 12px; border-radius:12px; font-size:14px; }
   .daycard .note { font-size:14px; color:var(--muted); margin:0; }
   .daycard .streak { font-weight:700; font-size:14px; }
+  .leftover { background:var(--warm-soft); color:#7A3A0E; padding:12px; border-radius:12px; font-size:14px; display:flex; flex-direction:column; gap:8px; }
+  .leftover label { display:flex; gap:8px; align-items:center; font-weight:600; font-size:14px; cursor:pointer; }
+  .leftover input { width:18px; height:18px; accent-color:var(--warm); margin:0; }
+  .daycard .week { font-weight:700; font-size:14px; color:var(--brand); }
 </style>
 </head>
 <body>
@@ -152,7 +157,7 @@
     <label for="msg" style="position:absolute;left:-9999px">Message Tandem</label>
     <input id="msg" placeholder="Tell Tandem anything…" autocomplete="off">
     
-    <button class="mic" id="mic" aria-label="Speak">🎤</button>
+    <button type="button" class="mic" id="mic" aria-label="Talk to Tandem">🎤</button>
     <button class="send" id="send" aria-label="Send">➤</button>
   </form>
 </div>
@@ -176,8 +181,9 @@
   <div class="sheet" role="dialog" aria-labelledby="rTitle">
     <h2 id="rTitle">How did today go? 🌙</h2>
     <p id="rSummary" style="margin:0;color:var(--muted);font-size:14px"></p>
-    <label>What went well?<textarea id="rWell" placeholder="even small things count"></textarea></label>
-    <label>What got in the way? <span style="font-weight:500;color:var(--muted)">(optional)</span><textarea id="rWay" placeholder="no judgement here"></textarea></label>
+    <div style="font-size:14px;font-weight:700">What went well? <span style="font-weight:500;color:var(--muted)">tap any</span></div>
+    <div class="moods" id="rWins"></div>
+    <div class="leftover" id="rLeft"></div>
     <div style="font-size:14px;font-weight:700">How are you feeling?</div>
     <div class="moods">
       <button type="button" data-mood="proud">🔥 Proud</button>
@@ -199,6 +205,7 @@
       <h2 id="dcTitle"></h2>
       <div class="lesson" id="dcLesson"></div>
       <p class="note" id="dcNote"></p>
+      <div class="week" id="dcWeek"></div>
       <div class="streak" id="dcStreak"></div>
       <button class="primary" id="dcClose">Good night 🌙</button>
     </div>
@@ -210,16 +217,16 @@
 const $ = id => document.getElementById(id);
 const fmtDate = d => new Date(d + "T00:00").toLocaleDateString("en-IN", { weekday:"short", day:"numeric", month:"short" });
 const cheers = ["Nice one! 🎉", "Done and dusted ✨", "Look at you go 🚀", "One more colour on today's card 🎨", "That's progress 💪"];
-let profile = null;
+let profile = null, lastItems = [], reflectedToday = false, bedtimeShown = "";
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function toast(text) { $("toast").textContent = text; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2400); }
 
 /* ---------------- ONBOARDING ---------------- */
-const answers = { name:"", routine:"", energy:"", per_day:3 };
+const answers = { name:"", routine:"", wake:"", sleep:"", energy:"", per_day:3 };
 let step = 0;
 
-function dots(n) { const d = el("div","dots"); for (let i=0;i<4;i++){ const s=el("span"); if(i<=n) s.className="on"; d.append(s);} return d; }
+function dots(n) { const d = el("div","dots"); for (let i=0;i<6;i++){ const s=el("span"); if(i<=n) s.className="on"; d.append(s);} return d; }
 function backBtn() { const b = el("button","back","← Back"); b.type="button"; b.onclick = () => { step--; renderStep(); }; return b; }
 
 function choice(title, sub, value, key) {
@@ -233,7 +240,7 @@ function renderStep() {
   const ob = $("ob"); ob.innerHTML = "";
   if (step === 0) {
     ob.append(dots(0), el("h1", null, "Hey, I'm Tandem 👋"),
-      el("p", null, "I plan your day with you, not for you. Quick setup, under a minute."));
+      el("p", null, "We plan your day together, so you can sleep peacefully knowing what you got done. Takes a minute to set up."));
     const lab = el("label","field","What should I call you?");
     const name = el("input"); name.type="text"; name.value = answers.name; name.placeholder = "Your name"; lab.append(name);
     const consent = el("label","consent"); const cb = el("input"); cb.type="checkbox";
@@ -266,14 +273,31 @@ function renderStep() {
   }
   else if (step === 2) {
     const opts = el("div","options");
+    opts.append(choice("🌅 Up before the sun", "the early bird", "06:00", "wake"),
+                choice("☕ Up around 7", "coffee, then the world", "07:00", "wake"),
+                choice("😴 Snooze-button champion", "8 or later, no shame", "08:30", "wake"));
+    ob.append(backBtn(), dots(2), el("h1", null, "Which one sounds like you?"),
+      el("p", null, "So I never plan things while you're still in bed."), opts);
+  }
+  else if (step === 3) {
+    const opts = el("div","options");
+    opts.append(choice("🌙 Before 10", "early to bed", "22:00", "sleep"),
+                choice("📺 Around 11", "one more episode", "23:00", "sleep"),
+                choice("🕛 Midnight-ish", "the classic", "00:00", "sleep"),
+                choice("🦉 Way past midnight", "night owl life", "01:30", "sleep"));
+    ob.append(backBtn(), dots(3), el("h1", null, "When does your day usually end?"),
+      el("p", null, "I'll check in to wrap up the day just before."), opts);
+  }
+  else if (step === 4) {
+    const opts = el("div","options");
     opts.append(choice("🌅 Morning", "fresh brain, early start", "morning", "energy"),
                 choice("☀️ Afternoon", "warmed up by lunch", "afternoon", "energy"),
                 choice("🌆 Evening", "come alive after work", "evening", "energy"),
                 choice("🌙 Night", "the late-night grinder", "night", "energy"));
-    ob.append(backBtn(), dots(2), el("h1", null, "When do you get the most done?"),
+    ob.append(backBtn(), dots(4), el("h1", null, "When do you get the most done?"),
       el("p", null, "I'll put your hardest stuff here."), opts);
   }
-  else if (step === 3) {
+  else if (step === 5) {
     const opts = el("div","options");
     const pick = (title, sub, n) => {
       const b = el("button","opt" + (answers.per_day === n ? " picked":"")); b.type="button";
@@ -282,15 +306,16 @@ function renderStep() {
       return b;
     };
     opts.append(pick("1 big thing", "keep it light", 1), pick("3 big things", "balanced", 3), pick("5 big things", "beast mode", 5));
-    ob.append(backBtn(), dots(3), el("h1", null, "How much can you take on in a day?"),
-      el("p", null, "Be honest. I'd rather you finish 3 than feel bad about 9."), opts);
+    ob.append(backBtn(), dots(5), el("h1", null, "How much can you take on in a day?"),
+      el("p", null, "Be honest. I'd rather you finish 3 than feel bad about 9."),
+      el("p", null, "Big things = focus work. Quick to-dos like \"buy milk\" don't count, add as many as you want."), opts);
   }
 }
 
 async function finish() {
   $("ob").innerHTML = ""; $("ob").append(el("h1", null, "Setting things up… ✨"));
   await fetch("/onboarding", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(answers) });
-  profile = { name: answers.name };
+  profile = { name: answers.name, wake: answers.wake, sleep: answers.sleep };
   $("onboard").hidden = true;
   await load();
   $("reply").textContent = `🤝 All set, ${answers.name}! What's coming up this week? Exams, deadlines, plans, anything.`;
@@ -303,12 +328,15 @@ async function load() {
   const data = await (await fetch("/today")).json();
   const now = new Date(), h = now.getHours();
   const name = profile?.name ? `, ${profile.name}` : "";
-  $("greeting").textContent = (h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening") + name;
+  $("greeting").textContent = (h < 5 ? "Still up" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening") + name;
   $("date").textContent = now.toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long" });
 
   const chips = $("chips"); chips.innerHTML = "";
   if (!data.upcoming.length) chips.append(el("span","chip","Nothing yet. Tell Tandem what's coming up!"));
-  data.upcoming.forEach(e => chips.append(el("span", "chip" + (e.kind === "exam" ? " exam" : ""), `${fmtDate(e.date)} · ${e.title}`)));
+  data.upcoming.forEach(e => {
+    if (e.date === "unknown") chips.append(el("span", "chip tbd", `📅 date? · ${e.title}`));
+    else chips.append(el("span", "chip" + (e.kind === "exam" ? " exam" : ""), `${fmtDate(e.date)} · ${e.title}`));
+  });
 
   const pct = data.total ? Math.round(100 * data.done / data.total) : 0;
   $("bar").style.width = pct + "%";
@@ -322,6 +350,7 @@ async function load() {
                                 title:`${hb.title} (${hb.minutes} min)`, for_event:"Daily habit" })),
   ].sort((a,b) => (a.time||"").localeCompare(b.time||""));
 
+  lastItems = items; reflectedToday = data.reflected;
   const hhmm = now.toTimeString().slice(0,5);
   const pending = items.filter(i => !i.done);
   const next = pending.find(i => (i.time||"") >= hhmm) || pending[0];
@@ -439,33 +468,70 @@ $("mic").onclick = async () => {
   }
 };
 /* ---------------- EVENING REFLECTION ---------------- */
-let mood = "";
+let mood = "", wins = new Set();
 document.querySelectorAll("[data-mood]").forEach(b => b.onclick = () => {
   mood = b.dataset.mood;
   document.querySelectorAll("[data-mood]").forEach(x => x.classList.toggle("picked", x === b));
   $("rErr").textContent = "";
 });
-$("wrapBtn").onclick = () => {
-  const s = $("status").textContent;
-  $("rSummary").textContent = s ? `You got ${s} today.` : "Let's look back on today.";
-  $("rErr").textContent = ""; $("reflectModal").hidden = false; $("rWell").focus();
-};
+
+function openReflect() {
+  const done = lastItems.filter(i => i.done), left = lastItems.filter(i => !i.done);
+  $("rSummary").textContent = lastItems.length ? `You got ${done.length} of ${lastItems.length} done today.` : "Quiet day? Let's still close it out.";
+
+  const w = $("rWins"); w.innerHTML = ""; wins = new Set();
+  if (!done.length) w.append(el("span", null, "Nothing ticked today, and that's okay. Tomorrow's a fresh page 🌱"));
+  done.forEach(i => {
+    const b = el("button", null, "✓ " + i.title); b.type = "button";
+    b.onclick = () => { b.classList.toggle("picked"); wins.has(i.title) ? wins.delete(i.title) : wins.add(i.title); };
+    w.append(b);
+  });
+
+  const l = $("rLeft"); l.innerHTML = "";
+  const leftTasks = left.filter(i => i.kind === "task");
+  l.style.display = left.length ? "flex" : "none";
+  if (left.length) {
+    l.append(el("div", null, `${left.length} thing${left.length > 1 ? "s" : ""} left today. No stress, it happens 💜`));
+    if (leftTasks.length) {
+      const lab = el("label"); const cb = el("input"); cb.type = "checkbox"; cb.id = "rCarry"; cb.checked = true;
+      lab.append(cb, el("span", null, `Move ${leftTasks.length > 1 ? "them" : "it"} to tomorrow`));
+      l.append(lab);
+    }
+  }
+  mood = ""; document.querySelectorAll("[data-mood]").forEach(x => x.classList.remove("picked"));
+  $("rErr").textContent = ""; $("reflectModal").hidden = false;
+}
+$("wrapBtn").onclick = openReflect;
 $("rCancel").onclick = () => $("reflectModal").hidden = true;
-$("rWell").oninput = () => $("rErr").textContent = "";
+
 $("rSave").onclick = async () => {
-  if (!$("rWell").value.trim()) { $("rErr").textContent = "Write at least one thing that went well, even a tiny one"; return; }
-  if (!mood) { $("rErr").textContent = "Pick how you're feeling"; return; }
+  if (!mood) { $("rErr").textContent = "Pick how you're feeling first"; return; }
   $("rSave").disabled = true; $("rSave").textContent = "Painting your day card… 🎨";
   try {
     const res = await fetch("/reflect", { method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ went_well: $("rWell").value.trim(), got_in_way: $("rWay").value.trim(), mood }) });
+      body: JSON.stringify({ went_well: [...wins], mood, carry_over: $("rCarry")?.checked ?? false }) });
     const card = await res.json();
     if (!res.ok) throw new Error(card.detail || "error");
     $("reflectModal").hidden = true;
     showCard(card);
+    load();
   } catch (err) { $("rErr").textContent = "Couldn't make the card: " + err.message; }
   $("rSave").disabled = false; $("rSave").textContent = "Make my day card";
 };
+
+/* pop the wrap-up open ~5 minutes before bedtime */
+function checkBedtime() {
+  if (!profile?.sleep || reflectedToday || !$("reflectModal").hidden) return;
+  const now = new Date();
+  const [h, m] = profile.sleep.split(":").map(Number);
+  const bed = new Date(now); bed.setHours(h, m, 0, 0);
+  if (h < 5 && now.getHours() >= 12) bed.setDate(bed.getDate() + 1);  // after-midnight bedtimes
+  const mins = (bed - now) / 60000;
+  const key = now.toDateString();
+  if (mins <= 5 && mins > -90 && bedtimeShown !== key) { bedtimeShown = key; openReflect(); }
+}
+setInterval(checkBedtime, 60000);
+
 function showCard(c) {
   $("dcImg").style.display = c.image ? "block" : "none";
   if (c.image) $("dcImg").src = c.image + "?v=" + Date.now();
@@ -473,6 +539,7 @@ function showCard(c) {
   $("dcTitle").textContent = c.title;
   $("dcLesson").textContent = "💡 " + c.lesson;
   $("dcNote").textContent = c.note;
+  $("dcWeek").textContent = c.week?.total ? `📊 This week: ${c.week.done} of ${c.week.total} done (${Math.round(100 * c.week.done / c.week.total)}%)` : "";
   $("dcStreak").textContent = c.streak > 1 ? `🔥 ${c.streak}-day reflection streak` : "🌱 Day 1 of your reflection streak";
   $("cardModal").hidden = false;
 }
@@ -481,7 +548,7 @@ $("dcClose").onclick = () => $("cardModal").hidden = true;
 (async () => {
   profile = (await (await fetch("/profile")).json()).profile;
   if (!profile) { $("onboard").hidden = false; renderStep(); }
-  else load();
+  else { await load(); checkBedtime(); }
 })();
 </script>
 </body>

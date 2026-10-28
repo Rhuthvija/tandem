@@ -1,58 +1,16 @@
 {
   "profile": {
     "name": "ruby",
-    "energy": "morning",
+    "wake": "07:00",
+    "sleep": "22:00",
+    "energy": "night",
     "per_day": 3
   },
-  "routine": "college",
-  "events": [
-    {
-      "title": "DSA LeetCode",
-      "date": "2026-10-28",
-      "kind": "work"
-    },
-    {
-      "title": "Party",
-      "date": "2026-10-29",
-      "kind": "personal"
-    },
-    {
-      "title": "Make video",
-      "date": "2026-10-28",
-      "kind": "work"
-    }
-  ],
-  "tasks": [
-    {
-      "date": "2026-10-28",
-      "for_event": "DSA LeetCode",
-      "time": "21:30",
-      "title": "Do DSA LeetCode",
-      "done": true
-    },
-    {
-      "date": "2026-10-29",
-      "for_event": "Party",
-      "time": "19:00",
-      "title": "Start getting ready for party",
-      "done": false
-    },
-    {
-      "date": "2026-10-28",
-      "for_event": "Make video",
-      "time": "22:30",
-      "title": "Film video clips",
-      "done": false
-    },
-    {
-      "date": "2026-10-28",
-      "for_event": "Make video",
-      "time": "23:15",
-      "title": "Quick edit video",
-      "done": false
-    }
-  ],
+  "routine": "eating, sleeping",
+  "events": [],
+  "tasks": [],
   "habits": [],
   "habit_log": {},
-  "last_nudge": "2026-10-28"
+  "cards": {},
+  "last_nudge": "2026-10-29"
 }
