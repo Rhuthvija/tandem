@@ -28,6 +28,13 @@ def add_event(title, date, kind):
     mem["events"].append({"title": title, "date": date, "kind": kind})
     return f"📅 Event: {title} on {date}"
 
+def set_event_date(title, date):
+    for e in mem["events"]:
+        if e["title"].lower() == title.lower() and e["date"] == "unknown":
+            e["date"] = date
+            return f"📅 {e['title']} is now on {date}"
+    return f"No undated event called {title}"
+
 def add_tasks(tasks):
     for t in tasks:
         t["done"] = False
@@ -38,7 +45,7 @@ def add_habit(title, minutes, time):
     mem["habits"].append({"title": title, "minutes": minutes, "time": time})
     return f"🔁 Habit: {title} daily at {time}"
 
-FUNCS = {"set_routine": set_routine, "add_event": add_event, "add_tasks": add_tasks, "add_habit": add_habit}
+FUNCS = {"set_routine": set_routine, "add_event": add_event, "set_event_date": set_event_date, "add_tasks": add_tasks, "add_habit": add_habit}
 
 def fn(name, desc, props, required):
     return {"type": "function", "function": {"name": name, "description": desc,
@@ -47,14 +54,18 @@ def fn(name, desc, props, required):
 TOOLS = [
     fn("set_routine", "Save the user's fixed weekly routine (classes, work hours, sleep).",
        {"description": {"type": "string"}}, ["description"]),
-    fn("add_event", "Add a one-off event with a known date.",
-       {"title": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"},
+    fn("add_event", "Add a one-off event. Use date 'unknown' if the user hasn't said when yet.",
+       {"title": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD, or 'unknown'"},
         "kind": {"type": "string", "enum": ["exam", "deadline", "work", "personal", "errand", "other"]}},
        ["title", "date", "kind"]),
+    fn("set_event_date", "Set the date of an event that was added with date 'unknown'.",
+       {"title": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"}},
+       ["title", "date"]),
     fn("add_tasks", "Add small tasks that prepare for events.",
        {"tasks": {"type": "array", "items": {"type": "object", "properties": {
            "title": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"},
-           "time": {"type": "string", "description": "HH:MM 24h"}, "for_event": {"type": "string"}},
+           "time": {"type": "string", "description": "HH:MM 24h"}, "for_event": {"type": "string"},
+           "size": {"type": "string", "enum": ["big", "quick"], "description": "big = focus work, quick = under ~15 min"}},
            "required": ["title", "date", "time", "for_event"]}}},
        ["tasks"]),
     fn("add_habit", "Add a recurring daily habit (e.g. walking, reading).",
@@ -73,7 +84,7 @@ def system_prompt():
     per_day = profile.get("per_day", 3)
     return f"""You are Tandem, a warm, down-to-earth planning partner who plans the day WITH the user.
 Now: {now:%A %Y-%m-%d %H:%M}
-User: {profile.get('name', 'unknown')} · most productive in the {profile.get('energy', 'unknown')}
+User: {profile.get('name', 'unknown')} · most productive in the {profile.get('energy', 'unknown')} · wakes around {profile.get('wake', 'unknown')} · sleeps around {profile.get('sleep', 'unknown')}
 Fixed routine: {mem['routine'] or 'unknown'}
 Events: {json.dumps(mem['events'])}
 Daily habits: {json.dumps(mem['habits'])}
@@ -82,10 +93,12 @@ Yesterday's lesson (from their reflection): {last_lesson}
 
 Rules:
 - Event with a clear date: call add_event, then add_tasks to break it into small tasks (under 90 min) from now until the event.
+- Never schedule anything before they wake up or after their bedtime.
 - Only schedule in FREE time: never inside the fixed routine, never before the current time, no clashes with existing tasks or habits.
-- Max {per_day} tasks per day. Put the hardest tasks in their most productive time.
+- Max {per_day} BIG tasks (focus work, ~30+ min) per day. Quick to-dos (under ~15 min, like 'buy milk', 'reply to email') don't count toward this limit, add them freely. Put the hardest tasks in their most productive time.
 - Recurring things ("every day", "10k steps") are habits: call add_habit.
-- Work out relative dates yourself (tomorrow, day after, this Friday). Only ask when a date is truly unknown.
+- Work out relative dates yourself (tomorrow, day after, this Friday).
+- If a date is truly unknown, STILL call add_event with date 'unknown' right away so it shows up, then ask for the date. When they answer, call set_event_date, then add_tasks.
 - If the user describes their routine, call set_routine first.
 - Use their name sometimes. Reply in 1-3 short, warm sentences, like a friend, not an assistant.
 - When planning, quietly apply yesterday's lesson if it's relevant.
@@ -97,8 +110,7 @@ def make_day_card(date, done, missed, went_well, got_in_way, mood):
 Date: {date}
 Done: {json.dumps(done)}
 Not done: {json.dumps(missed)}
-What went well (their words): {went_well}
-What got in the way (their words): {got_in_way or 'nothing mentioned'}
+What they were proud of today (tapped from their done list): {went_well}
 Mood: {mood}
 
 Return ONLY JSON with these keys:
