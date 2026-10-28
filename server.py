@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException, UploadFile, File
 import os, json, requests
 from pydantic import BaseModel
@@ -36,7 +37,50 @@ async def voice(audio: UploadFile = File(...)):
     global history
     reply, history = agent.chat(heard, history)
     return {"heard": heard, "reply": reply}
-@app.get("/today")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+class Reflection(BaseModel):
+    went_well: str
+    got_in_way: str = ""
+    mood: str
+
+def reflection_streak():
+    cards = agent.mem.get("cards", {})
+    day, count, grace = datetime.now().date(), 0, 1
+    while True:
+        if str(day) in cards:
+            count += 1
+        elif grace:
+            grace -= 1
+        else:
+            break
+        day -= timedelta(days=1)
+    return count
+
+@app.post("/reflect")
+def reflect(body: Reflection):
+    d = datetime.now().strftime("%Y-%m-%d")
+    tasks = [t for t in agent.mem["tasks"] if t["date"] == d]
+    done_h = agent.mem.get("habit_log", {}).get(d, [])
+    habits = agent.mem["habits"]
+    done = [t["title"] for t in tasks if t["done"]] + [h["title"] for i, h in enumerate(habits) if i in done_h]
+    missed = [t["title"] for t in tasks if not t["done"]] + [h["title"] for i, h in enumerate(habits) if i not in done_h]
+
+    card = agent.make_day_card(d, done, missed, body.went_well, body.got_in_way, body.mood)
+    os.makedirs("static/cards", exist_ok=True)
+    has_art = agent.paint_card(card.get("scene", ""), f"static/cards/{d}.png")
+    card.update({"date": d, "mood": body.mood, "done": len(done), "total": len(done) + len(missed),
+                 "image": f"/static/cards/{d}.png" if has_art else None})
+    agent.mem.setdefault("cards", {})[d] = card
+    agent.save_mem()
+    return {**card, "streak": reflection_streak()}
+
+@app.get("/cards")
+def all_cards():
+    return sorted(agent.mem.get("cards", {}).values(), key=lambda c: c["date"], reverse=True)
+
+
 @app.get("/today")
 def today():
     d = datetime.now().strftime("%Y-%m-%d")
