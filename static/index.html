@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tandem</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root { --bg:#F5F3FA; --card:#fff; --ink:#1E1B2E; --muted:#5E5873; --line:#ECE8F5;
+          --brand:#5443B8; --brand-soft:#EEEBF9; --warm:#E8833A; --warm-soft:#FDF0E6; --ok:#2F7A4F; --err:#B42318; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#E9E6F2; font-family:'Manrope',system-ui,sans-serif; color:var(--ink); }
+  .app { max-width:430px; min-height:100vh; margin:0 auto; background:var(--bg); display:flex; flex-direction:column; }
+  h1,h2 { font-family:'Bricolage Grotesque',sans-serif; margin:0; }
+  header { padding:24px 22px 8px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .date { font-size:13px; font-weight:600; color:var(--muted); }
+  h1 { font-size:26px; line-height:1.15; }
+  .ring { position:relative; width:64px; height:64px; flex-shrink:0; }
+  .ring svg { transform:rotate(-90deg); }
+  .ring span { position:absolute; inset:0; display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .section-label { font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.06em; padding:14px 22px 8px; }
+  .chips { display:flex; gap:8px; overflow-x:auto; padding:0 22px; scrollbar-width:none; }
+  .chip { white-space:nowrap; padding:8px 12px; border-radius:12px; background:var(--card); border:1px solid #DCD6EC; font-size:13px; font-weight:600; }
+  .chip.exam { background:var(--warm-soft); border-color:#F3CFB3; color:#7A3A0E; }
+  .next { margin:16px 22px 0; padding:16px; border-radius:20px; background:var(--brand); color:#fff; }
+  .next small { font-size:12px; font-weight:700; letter-spacing:.06em; color:#E4DFF7; }
+  .next h2 { font-size:21px; margin:6px 0 4px; }
+  .next p { margin:0; font-size:14px; color:#F1EEFC; }
+  .plan { flex:1; margin-top:18px; background:var(--card); border-radius:28px 28px 0 0; padding:20px 22px 120px; }
+  .plan-head { display:flex; justify-content:space-between; align-items:baseline; }
+  .plan-head h2 { font-size:20px; }
+  .status { font-size:13px; font-weight:700; color:var(--ok); }
+  .bar { height:8px; border-radius:4px; background:var(--line); margin:10px 0 8px; overflow:hidden; }
+  .bar div { height:100%; background:var(--brand); transition:width .4s; }
+  .item { display:flex; align-items:center; gap:12px; min-height:48px; border-bottom:1px solid var(--line); }
+  .item .time { width:46px; font-size:12px; font-weight:600; color:var(--muted); }
+  .item input { width:22px; height:22px; accent-color:var(--brand); margin:0; cursor:pointer; }
+  .item .title { flex:1; font-size:15px; font-weight:500; }
+  .item.done .title { color:var(--muted); text-decoration:line-through; }
+  .tag { font-size:11px; font-weight:700; color:var(--brand); background:var(--brand-soft); padding:3px 8px; border-radius:8px; }
+  .empty { color:var(--muted); font-size:14px; padding:12px 0; }
+  .composer { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; padding:12px 16px 20px; background:linear-gradient(transparent, var(--card) 30%); }
+  .reply { background:var(--brand-soft); padding:12px 14px; border-radius:16px; font-size:14px; margin-bottom:10px; display:none; }
+  .reply.show { display:block; }
+  .inputrow { display:flex; gap:8px; background:var(--card); border:1px solid #DCD6EC; border-radius:24px; padding:6px 6px 6px 16px; }
+  .inputrow input { flex:1; border:none; outline:none; font:inherit; font-size:15px; background:transparent; }
+  .send { width:44px; height:44px; border-radius:22px; border:none; background:var(--brand); color:#fff; font-size:18px; cursor:pointer; }
+  .send:disabled { opacity:.5; }
+  .toast { position:fixed; top:20px; left:50%; transform:translate(-50%,-90px); background:var(--ink); color:#fff; padding:12px 18px; border-radius:14px; font-weight:600; font-size:14px; transition:transform .3s; z-index:30; }
+  .toast.show { transform:translate(-50%,0); }
+
+  /* onboarding */
+  .onboard { position:fixed; inset:0; background:var(--bg); z-index:20; display:flex; justify-content:center; overflow-y:auto; }
+  .onboard[hidden] { display:none; }
+  .ob { width:100%; max-width:430px; padding:48px 26px 32px; display:flex; flex-direction:column; gap:18px; }
+  .dots { display:flex; gap:6px; }
+  .dots span { width:28px; height:6px; border-radius:3px; background:#DCD6EC; }
+  .dots span.on { background:var(--brand); }
+  .ob h1 { font-size:30px; }
+  .ob p { margin:0; color:var(--muted); font-size:15px; line-height:1.5; }
+  .ob label.field { font-size:14px; font-weight:700; display:flex; flex-direction:column; gap:8px; }
+  .ob input[type=text], .ob textarea { font:inherit; font-size:16px; padding:14px; border-radius:14px; border:1px solid #DCD6EC; background:var(--card); outline-color:var(--brand); }
+  .ob textarea { min-height:110px; resize:vertical; }
+  .consent { display:flex; gap:10px; align-items:flex-start; font-size:13px; color:var(--muted); line-height:1.45; }
+  .consent input { width:20px; height:20px; accent-color:var(--brand); margin:2px 0 0; flex-shrink:0; }
+  .options { display:flex; flex-direction:column; gap:10px; }
+  .opt { text-align:left; font:inherit; font-size:16px; font-weight:600; padding:16px; border-radius:16px; border:1.5px solid #DCD6EC; background:var(--card); cursor:pointer; color:var(--ink); }
+  .opt small { display:block; font-weight:500; font-size:13px; color:var(--muted); margin-top:2px; }
+  .opt:hover { border-color:var(--brand); }
+  .opt.picked { border-color:var(--brand); background:var(--brand-soft); }
+  .primary { font:inherit; font-size:16px; font-weight:700; padding:16px; border-radius:16px; border:none; background:var(--brand); color:#fff; cursor:pointer; margin-top:6px; }
+  .error { color:var(--err); font-size:13px; min-height:18px; }
+  .back { align-self:flex-start; background:none; border:none; font:inherit; color:var(--muted); font-weight:600; cursor:pointer; padding:8px 0; }
+  .next-row { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  .done-btn { font:inherit; font-weight:700; font-size:14px; padding:10px 16px; border-radius:12px; border:none; background:#fff; color:var(--brand); cursor:pointer; white-space:nowrap; }
+  .modal { position:fixed; inset:0; background:rgba(30,27,46,.45); display:flex; align-items:center; justify-content:center; z-index:25; padding:20px; }
+  .modal[hidden] { display:none; }
+  .cc { background:var(--card); border-radius:24px; padding:26px 22px; max-width:360px; width:100%; text-align:center; display:flex; flex-direction:column; gap:12px; }
+  .cc .big { font-size:44px; }
+  .cc h2 { font-size:22px; }
+  .cc p { margin:0; color:var(--muted); font-size:14px; }
+  .took { display:flex; gap:8px; }
+  .took button { flex:1; font:inherit; font-size:13px; font-weight:600; padding:12px 6px; border-radius:12px; border:1.5px solid #DCD6EC; background:#fff; cursor:pointer; color:var(--ink); }
+  .took button:hover { border-color:var(--brand); }
+  .skip { background:none; border:none; font:inherit; color:var(--muted); cursor:pointer; padding:6px; }
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING -->
+<div class="onboard" id="onboard" hidden>
+  <div class="ob" id="ob"></div>
+</div>
+
+<!-- TODAY -->
+<div class="app">
+  <header>
+    <div>
+      <div class="date" id="date"></div>
+      <h1 id="greeting">Hello!</h1>
+    </div>
+    <div class="ring" title="Today's card colour">
+      <svg width="64" height="64"><circle cx="32" cy="32" r="26" fill="none" stroke="#E4DFF7" stroke-width="7"/>
+        <circle id="ringFill" cx="32" cy="32" r="26" fill="none" stroke="#5443B8" stroke-width="7" stroke-linecap="round" stroke-dasharray="163.4" stroke-dashoffset="163.4" style="transition:stroke-dashoffset .5s"/></svg>
+      <span id="ringText">0%</span>
+    </div>
+  </header>
+
+  <div class="section-label">COMING UP</div>
+  <div class="chips" id="chips"></div>
+
+  <div class="next" id="next" style="display:none">
+    <small id="nextTime">NEXT UP</small>
+    <div class="next-row">
+      <div><h2 id="nextTitle"></h2><p id="nextFor"></p></div>
+      <button class="done-btn" id="nextDone">Done ✓</button>
+    </div>
+  </div>
+
+  <section class="plan">
+    <div class="plan-head"><h2>Today's plan</h2><span class="status" id="status"></span></div>
+    <div class="bar"><div id="bar" style="width:0%"></div></div>
+    <div id="list"></div>
+  </section>
+</div>
+
+<div class="composer">
+  <div class="reply" id="reply"></div>
+  <form class="inputrow" id="form">
+    <label for="msg" style="position:absolute;left:-9999px">Message Tandem</label>
+    <input id="msg" placeholder="Tell Tandem anything…" autocomplete="off">
+    <button class="send" id="send" aria-label="Send">➤</button>
+  </form>
+</div>
+<div class="modal" id="cc" hidden>
+  <div class="cc" role="dialog" aria-labelledby="ccTitle">
+    <div class="big">🎉</div>
+    <h2 id="ccTitle"></h2>
+    <p id="ccSub"></p>
+    <div id="ccAsk">
+      <p style="margin-bottom:8px">How long did it take?</p>
+      <div class="took">
+        <button data-took="quicker">⚡ Quicker</button>
+        <button data-took="as_planned">👌 As planned</button>
+        <button data-took="longer">🐢 Longer</button>
+      </div>
+    </div>
+    <button class="skip" id="ccSkip">Skip</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmtDate = d => new Date(d + "T00:00").toLocaleDateString("en-IN", { weekday:"short", day:"numeric", month:"short" });
+const cheers = ["Nice one! 🎉", "Done and dusted ✨", "Look at you go 🚀", "One more colour on today's card 🎨", "That's progress 💪"];
+let profile = null;
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function toast(text) { $("toast").textContent = text; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2400); }
+
+/* ---------------- ONBOARDING ---------------- */
+const answers = { name:"", routine:"", energy:"", per_day:3 };
+let step = 0;
+
+function dots(n) { const d = el("div","dots"); for (let i=0;i<4;i++){ const s=el("span"); if(i<=n) s.className="on"; d.append(s);} return d; }
+function backBtn() { const b = el("button","back","← Back"); b.type="button"; b.onclick = () => { step--; renderStep(); }; return b; }
+
+function choice(title, sub, value, key) {
+  const b = el("button", "opt" + (answers[key] === value ? " picked" : "")); b.type = "button";
+  b.append(document.createTextNode(title)); if (sub) b.append(el("small", null, sub));
+  b.onclick = () => { answers[key] = value; step++; renderStep(); };
+  return b;
+}
+
+function renderStep() {
+  const ob = $("ob"); ob.innerHTML = "";
+  if (step === 0) {
+    ob.append(dots(0), el("h1", null, "Hey, I'm Tandem 👋"),
+      el("p", null, "I plan your day with you, not for you. Quick setup, under a minute."));
+    const lab = el("label","field","What should I call you?");
+    const name = el("input"); name.type="text"; name.value = answers.name; name.placeholder = "Your name"; lab.append(name);
+    const consent = el("label","consent"); const cb = el("input"); cb.type="checkbox";
+    consent.append(cb, el("span", null, "I'm okay with Tandem saving my plans so it can remember them, and using Meta's AI models to plan with me."));
+    const err = el("div","error");
+    const go = el("button","primary","Let's go"); go.type="button";
+    const clear = () => err.textContent = "";
+    name.oninput = clear; cb.onchange = clear;
+    go.onclick = () => {
+      if (!name.value.trim()) { err.textContent = "Tell me your name first 🙂"; return; }
+      if (!cb.checked) { err.textContent = "Please tick the box to continue"; return; }
+      answers.name = name.value.trim(); step = 1; renderStep();
+    };
+    ob.append(lab, consent, err, go);
+    name.focus();
+  }
+  else if (step === 1) {
+    ob.append(backBtn(), dots(1), el("h1", null, `What's fixed in your week, ${answers.name}?`),
+      el("p", null, "Classes, work, gym, anything that doesn't move. Type it like you'd text a friend."));
+    const ta = el("textarea"); ta.value = answers.routine;
+    ta.placeholder = "college 8:30–4 on weekdays, japanese 5:20–8:30 pm, internship 9–12 at night…";
+    ta.setAttribute("aria-label","Your fixed weekly routine");
+    const err = el("div","error"); ta.oninput = () => err.textContent = "";
+    const next = el("button","primary","Next"); next.type="button";
+    next.onclick = () => {
+      if (ta.value.trim().length < 5) { err.textContent = "Add at least one thing, even just your work or class hours"; return; }
+      answers.routine = ta.value.trim(); step = 2; renderStep();
+    };
+    ob.append(ta, err, next); ta.focus();
+  }
+  else if (step === 2) {
+    const opts = el("div","options");
+    opts.append(choice("🌅 Morning", "fresh brain, early start", "morning", "energy"),
+                choice("☀️ Afternoon", "warmed up by lunch", "afternoon", "energy"),
+                choice("🌆 Evening", "come alive after work", "evening", "energy"),
+                choice("🌙 Night", "the late-night grinder", "night", "energy"));
+    ob.append(backBtn(), dots(2), el("h1", null, "When do you get the most done?"),
+      el("p", null, "I'll put your hardest stuff here."), opts);
+  }
+  else if (step === 3) {
+    const opts = el("div","options");
+    const pick = (title, sub, n) => {
+      const b = el("button","opt" + (answers.per_day === n ? " picked":"")); b.type="button";
+      b.append(document.createTextNode(title), el("small", null, sub));
+      b.onclick = () => { answers.per_day = n; finish(); };
+      return b;
+    };
+    opts.append(pick("1 big thing", "keep it light", 1), pick("3 big things", "balanced", 3), pick("5 big things", "beast mode", 5));
+    ob.append(backBtn(), dots(3), el("h1", null, "How much can you take on in a day?"),
+      el("p", null, "Be honest. I'd rather you finish 3 than feel bad about 9."), opts);
+  }
+}
+
+async function finish() {
+  $("ob").innerHTML = ""; $("ob").append(el("h1", null, "Setting things up… ✨"));
+  await fetch("/onboarding", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(answers) });
+  profile = { name: answers.name };
+  $("onboard").hidden = true;
+  await load();
+  $("reply").textContent = `🤝 All set, ${answers.name}! What's coming up this week? Exams, deadlines, plans, anything.`;
+  $("reply").classList.add("show");
+  $("msg").focus();
+}
+
+/* ---------------- TODAY ---------------- */
+async function load() {
+  const data = await (await fetch("/today")).json();
+  const now = new Date(), h = now.getHours();
+  const name = profile?.name ? `, ${profile.name}` : "";
+  $("greeting").textContent = (h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening") + name;
+  $("date").textContent = now.toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long" });
+
+  const chips = $("chips"); chips.innerHTML = "";
+  if (!data.upcoming.length) chips.append(el("span","chip","Nothing yet. Tell Tandem what's coming up!"));
+  data.upcoming.forEach(e => chips.append(el("span", "chip" + (e.kind === "exam" ? " exam" : ""), `${fmtDate(e.date)} · ${e.title}`)));
+
+  const pct = data.total ? Math.round(100 * data.done / data.total) : 0;
+  $("bar").style.width = pct + "%";
+  $("ringFill").style.strokeDashoffset = 163.4 * (1 - pct / 100);
+  $("ringText").textContent = pct + "%";
+  $("status").textContent = data.total ? `${data.done} of ${data.total} done` : "";
+
+  const items = [
+    ...data.tasks.map(t => ({ ...t, kind:"task" })),
+    ...data.habits.map(hb => ({ id:hb.id, done:hb.done, time:hb.time, kind:"habit",
+                                title:`${hb.title} (${hb.minutes} min)`, for_event:"Daily habit" })),
+  ].sort((a,b) => (a.time||"").localeCompare(b.time||""));
+
+  const hhmm = now.toTimeString().slice(0,5);
+  const pending = items.filter(i => !i.done);
+  const next = pending.find(i => (i.time||"") >= hhmm) || pending[0];
+  $("next").style.display = next ? "block" : "none";
+  if (next) {
+    $("nextTime").textContent = `NEXT UP · ${next.time || "anytime"}`;
+    $("nextTitle").textContent = next.title;
+    $("nextFor").textContent = `For: ${next.for_event}`;
+    $("nextDone").onclick = () => complete(next);
+  }
+
+  const list = $("list"); list.innerHTML = "";
+  if (!items.length) list.append(el("div","empty","No plan yet. Tell Tandem about your day below 👇"));
+  items.forEach(it => {
+    const row = el("label", "item" + (it.done ? " done" : ""));
+    row.append(el("span","time", it.time || "--:--"));
+    const box = el("input"); box.type = "checkbox"; box.checked = it.done;
+    box.onchange = () => complete(it);
+    row.append(box, el("span","title", it.title));
+    if (it.kind === "habit") row.append(el("span","tag","daily"));
+    list.append(row);
+  });
+}
+
+let ccItem = null;
+function celebrate(item) {
+  ccItem = item;
+  $("ccTitle").textContent = cheers[Math.floor(Math.random() * cheers.length)];
+  $("ccSub").textContent = `"${item.title}" is done. +1 colour on today's card 🎨`;
+  $("ccAsk").style.display = item.kind === "task" ? "block" : "none";
+  $("cc").hidden = false;
+}
+document.querySelectorAll("[data-took]").forEach(b => b.onclick = async () => {
+  if (ccItem?.kind === "task") {
+    await fetch(`/tasks/${ccItem.id}/feedback`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ took: b.dataset.took }) });
+  }
+  $("cc").hidden = true;
+});
+$("ccSkip").onclick = () => $("cc").hidden = true;
+
+async function complete(item) {
+  const url = item.kind === "task" ? `/tasks/${item.id}/done` : `/habits/${item.id}/done`;
+  await fetch(url, { method:"POST" });
+  if (!item.done) celebrate(item);
+  load();
+}
+
+$("form").onsubmit = async e => {
+  e.preventDefault();
+  const text = $("msg").value.trim(); if (!text) return;
+  $("msg").value = ""; $("send").disabled = true;
+  $("reply").textContent = "Tandem is thinking…"; $("reply").classList.add("show");
+  try {
+    const res = await fetch("/chat", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ message:text }) });
+    $("reply").textContent = "🤝 " + (await res.json()).reply;
+    load();
+  } catch { $("reply").textContent = "Couldn't reach Tandem. Is the server running?"; }
+  $("send").disabled = false;
+};
+
+/* ---------------- START ---------------- */
+(async () => {
+  profile = (await (await fetch("/profile")).json()).profile;
+  if (!profile) { $("onboard").hidden = false; renderStep(); }
+  else load();
+})();
+</script>
+</body>
+</html>

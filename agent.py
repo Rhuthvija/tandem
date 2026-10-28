@@ -7,8 +7,7 @@ from openai import OpenAI
 client = OpenAI(base_url="https://api.meta.ai/v1", api_key=os.environ["MODEL_API_KEY"])
 MODEL = "muse-spark-1.3"
 MEMORY = "memory.json"
-EMPTY = {"routine": "", "events": [], "tasks": [], "habits": [], "last_nudge": None}
-
+EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "last_nudge": None}
 def load_mem():
     base = json.loads(json.dumps(EMPTY))
     if os.path.exists(MEMORY):
@@ -68,8 +67,11 @@ def system_prompt():
     now = datetime.now()
     today = now.strftime("%Y-%m-%d")
     upcoming = [t for t in mem["tasks"] if t["date"] >= today]
+    profile = mem.get("profile") or {}
+    per_day = profile.get("per_day", 3)
     return f"""You are Tandem, a warm, down-to-earth planning partner who plans the day WITH the user.
 Now: {now:%A %Y-%m-%d %H:%M}
+User: {profile.get('name', 'unknown')} · most productive in the {profile.get('energy', 'unknown')}
 Fixed routine: {mem['routine'] or 'unknown'}
 Events: {json.dumps(mem['events'])}
 Daily habits: {json.dumps(mem['habits'])}
@@ -77,11 +79,14 @@ Planned tasks from today: {json.dumps(upcoming)}
 
 Rules:
 - Event with a clear date: call add_event, then add_tasks to break it into small tasks (under 90 min) from now until the event.
-- Only schedule in FREE time: never inside the fixed routine, never before the current time, max 3 tasks per day, no clashes with existing tasks or habits.
+- Only schedule in FREE time: never inside the fixed routine, never before the current time, no clashes with existing tasks or habits.
+- Max {per_day} tasks per day. Put the hardest tasks in their most productive time.
 - Recurring things ("every day", "10k steps") are habits: call add_habit.
-- If a date is missing or vague, DON'T guess: ask about it, and plan it once they answer.
+- Work out relative dates yourself (tomorrow, day after, this Friday). Only ask when a date is truly unknown.
 - If the user describes their routine, call set_routine first.
-- Reply in 1-3 short, warm sentences, like a friend, not an assistant."""
+- Use their name sometimes. Reply in 1-3 short, warm sentences, like a friend, not an assistant.
+- For deadlines, aim to finish a day early for breathing room and mention it in one line.
+- When the user adds a to-do, confirm where you put it. Only sometimes, when genuinely useful, add a one-line tip on how to tackle it."""
 
 def chat(user_text, history):
     today = datetime.now().strftime("%Y-%m-%d")
