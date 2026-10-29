@@ -109,6 +109,10 @@
   .leftover label { display:flex; gap:8px; align-items:center; font-weight:600; font-size:14px; cursor:pointer; }
   .leftover input { width:18px; height:18px; accent-color:var(--warm); margin:0; }
   .daycard .week { font-weight:700; font-size:14px; color:var(--brand); }
+  .bell { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:10px; border:1px solid #DCD6EC; background:#fff; color:var(--brand); cursor:pointer; }
+  .checkin-actions { display:flex; flex-direction:column; gap:8px; }
+  .checkin-actions button { font:inherit; font-size:15px; font-weight:700; padding:14px; border-radius:14px; cursor:pointer; border:1.5px solid #DCD6EC; background:#fff; color:var(--ink); }
+  .checkin-actions .go { background:var(--brand); color:#fff; border-color:var(--brand); }
 </style>
 </head>
 <body>
@@ -144,7 +148,7 @@
   </div>
 
   <section class="plan">
-    <div class="plan-head"><h2>Today's plan</h2><span class="status" id="status"></span></div>
+    <div class="plan-head"><h2>Today's plan</h2><span><button class="bell" id="bell" hidden>🔔 Remind me</button> <span class="status" id="status"></span></span></div>
     <div class="bar"><div id="bar" style="width:0%"></div></div>
     <div id="list"></div>
     <button class="wrap" id="wrapBtn">🌙 Wrap up my day</button>
@@ -208,6 +212,18 @@
       <div class="week" id="dcWeek"></div>
       <div class="streak" id="dcStreak"></div>
       <button class="primary" id="dcClose">Good night 🌙</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="checkin" hidden>
+  <div class="cc" role="dialog" aria-labelledby="ciTitle">
+    <div class="big">⏰</div>
+    <h2 id="ciTitle"></h2>
+    <p id="ciSub"></p>
+    <div class="checkin-actions">
+      <button class="go" id="ciStart">▶ Let's start</button>
+      <button id="ciPush">⏰ Push 30 min</button>
+      <button id="ciSkip">🌱 Not today, move to tomorrow</button>
     </div>
   </div>
 </div>
@@ -356,7 +372,8 @@ async function load() {
   const next = pending.find(i => (i.time||"") >= hhmm) || pending[0];
   $("next").style.display = next ? "block" : "none";
   if (next) {
-    $("nextTime").textContent = `NEXT UP · ${next.time || "anytime"}`;
+    const mins = next.started_at ? Math.max(0, Math.round((now - new Date(next.started_at)) / 60000)) : null;
+    $("nextTime").textContent = mins !== null ? `IN PROGRESS · ${mins} min` : `NEXT UP · ${next.time || "anytime"}`;
     $("nextTitle").textContent = next.title;
     $("nextFor").textContent = `For: ${next.for_event}`;
     $("nextDone").onclick = () => complete(next);
@@ -532,6 +549,56 @@ function checkBedtime() {
 }
 setInterval(checkBedtime, 60000);
 
+/* ---------------- CHECK-INS ---------------- */
+let ciTask = null;
+const nudged = new Set();
+
+function canNotify() { return "Notification" in window; }
+function updateBell() { $("bell").hidden = !(canNotify() && Notification.permission === "default"); }
+$("bell").onclick = async () => { await Notification.requestPermission(); updateBell(); };
+
+function checkIns() {
+  if (!$("checkin").hidden || !$("cc").hidden || !$("reflectModal").hidden) return;
+  const now = new Date(), hhmm = now.toTimeString().slice(0, 5);
+  const due = lastItems.find(i => i.kind === "task" && !i.done && !i.started_at && i.time &&
+                                  i.time <= hhmm && !nudged.has(i.id + "@" + i.time) &&
+                                  (now - new Date(`${i.date}T${i.time}`)) / 60000 < 15);
+  if (!due) return;
+  nudged.add(due.id + "@" + due.time);
+  ciTask = due;
+  $("ciTitle").textContent = `It's ${due.time}, ${profile?.name || "friend"} 👋`;
+  $("ciSub").textContent = `Ready for "${due.title}"?`;
+  $("checkin").hidden = false;
+  if (canNotify() && Notification.permission === "granted" && document.hidden) {
+    const n = new Notification("Tandem ⏰", { body: `Ready for "${due.title}"?` });
+    n.onclick = () => { window.focus(); n.close(); };
+  }
+}
+setInterval(checkIns, 30000);
+setInterval(() => { if ($("checkin").hidden && $("cc").hidden && $("reflectModal").hidden && $("cardModal").hidden) load(); }, 60000);
+
+$("ciStart").onclick = async () => {
+  $("checkin").hidden = true;
+  await fetch(`/tasks/${ciTask.id}/start`, { method: "POST" });
+  toast("Go get it! Timer's running ⏱");
+  load();
+};
+$("ciPush").onclick = async () => {
+  $("checkin").hidden = true;
+  showReply("Moving things around…");
+  const res = await fetch(`/tasks/${ciTask.id}/push`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minutes: 30 }) });
+  const data = await res.json();
+  showReply("🤝 " + (data.reply || "Pushed 30 minutes."));
+  load();
+};
+$("ciSkip").onclick = async () => {
+  $("checkin").hidden = true;
+  await fetch(`/tasks/${ciTask.id}/skip`, { method: "POST" });
+  toast("Moved to tomorrow, no stress 🌱");
+  load();
+};
+
+
 function showCard(c) {
   $("dcImg").style.display = c.image ? "block" : "none";
   if (c.image) $("dcImg").src = c.image + "?v=" + Date.now();
@@ -548,7 +615,8 @@ $("dcClose").onclick = () => $("cardModal").hidden = true;
 (async () => {
   profile = (await (await fetch("/profile")).json()).profile;
   if (!profile) { $("onboard").hidden = false; renderStep(); }
-  else { await load(); checkBedtime(); }
+  else { await load(); checkBedtime(); checkIns(); }
+  updateBell();
 })();
 </script>
 </body>

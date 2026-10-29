@@ -41,11 +41,18 @@ def add_tasks(tasks):
         mem["tasks"].append(t)
     return f"📝 Added {len(tasks)} tasks"
 
+def move_task(task_id, date, time):
+    if not 0 <= task_id < len(mem["tasks"]):
+        return "No such task"
+    t = mem["tasks"][task_id]
+    t["date"], t["time"] = date, time
+    return f"↪️ Moved {t['title']} to {date} {time}"
+
 def add_habit(title, minutes, time):
     mem["habits"].append({"title": title, "minutes": minutes, "time": time})
     return f"🔁 Habit: {title} daily at {time}"
 
-FUNCS = {"set_routine": set_routine, "add_event": add_event, "set_event_date": set_event_date, "add_tasks": add_tasks, "add_habit": add_habit}
+FUNCS = {"set_routine": set_routine, "add_event": add_event, "set_event_date": set_event_date, "add_tasks": add_tasks, "add_habit": add_habit, "move_task": move_task}
 
 def fn(name, desc, props, required):
     return {"type": "function", "function": {"name": name, "description": desc,
@@ -68,6 +75,10 @@ TOOLS = [
            "size": {"type": "string", "enum": ["big", "quick"], "description": "big = focus work, quick = under ~15 min"}},
            "required": ["title", "date", "time", "for_event"]}}},
        ["tasks"]),
+    fn("move_task", "Move an existing task (by its id) to a new date/time, e.g. to fix a clash or replan.",
+       {"task_id": {"type": "integer"}, "date": {"type": "string", "description": "YYYY-MM-DD"},
+        "time": {"type": "string", "description": "HH:MM 24h"}},
+       ["task_id", "date", "time"]),
     fn("add_habit", "Add a recurring daily habit (e.g. walking, reading).",
        {"title": {"type": "string"}, "minutes": {"type": "integer"},
         "time": {"type": "string", "description": "HH:MM 24h, in free time"}},
@@ -77,7 +88,7 @@ TOOLS = [
 def system_prompt():
     now = datetime.now()
     today = now.strftime("%Y-%m-%d")
-    upcoming = [t for t in mem["tasks"] if t["date"] >= today]
+    upcoming = [{"id": i, **t} for i, t in enumerate(mem["tasks"]) if t["date"] >= today]
     profile = mem.get("profile") or {}
     past = sorted(d for d in mem.get("cards", {}) if d < today)
     last_lesson = mem["cards"][past[-1]]["lesson"] if past else "none yet"
@@ -100,6 +111,8 @@ Rules:
 - Work out relative dates yourself (tomorrow, day after, this Friday).
 - If a date is truly unknown, STILL call add_event with date 'unknown' right away so it shows up, then ask for the date. When they answer, call set_event_date, then add_tasks.
 - If the user describes their routine, call set_routine first.
+- If you pick a time the user didn't give, say so in your reply and invite them to change it.
+- Small same-day to-dos with no bigger event are just tasks (add_tasks with for_event "To-do"), NOT events.
 - Use their name sometimes. Reply in 1-3 short, warm sentences, like a friend, not an assistant.
 - When planning, quietly apply yesterday's lesson if it's relevant.
 - For deadlines, aim to finish a day early for breathing room and mention it in one line.

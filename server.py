@@ -136,6 +136,43 @@ def toggle_habit(habit_id: int):
     agent.save_mem()
     return {"done": habit_id in log}
 
+def _task(task_id):
+    if not 0 <= task_id < len(agent.mem["tasks"]):
+        raise HTTPException(404, "Task not found")
+    return agent.mem["tasks"][task_id]
+
+@app.post("/tasks/{task_id}/start")
+def start_task(task_id: int):
+    t = _task(task_id)
+    t["started_at"] = datetime.now().isoformat(timespec="minutes")
+    agent.save_mem()
+    return t
+
+class Push(BaseModel):
+    minutes: int = 30
+
+@app.post("/tasks/{task_id}/push")
+def push_task(task_id: int, body: Push):
+    """Push a task later, then let Tandem fix any clashes in the rest of the day."""
+    global history
+    t = _task(task_id)
+    when = datetime.strptime(f"{t['date']} {t.get('time') or '12:00'}", "%Y-%m-%d %H:%M")
+    when = max(when, datetime.now()) + timedelta(minutes=body.minutes)
+    t["date"], t["time"] = when.strftime("%Y-%m-%d"), when.strftime("%H:%M")
+    agent.save_mem()
+    reply, history = agent.chat(
+        f"(Check-in) I just pushed '{t['title']}' to {t['time']} on {t['date']}. "
+        "If that clashes with anything else today, quietly fix it with move_task. "
+        "Then tell me in one short, friendly line what changed.", history)
+    return {"task": t, "reply": reply}
+
+@app.post("/tasks/{task_id}/skip")
+def skip_task(task_id: int):
+    t = _task(task_id)
+    t["date"] = str((datetime.now() + timedelta(days=1)).date())
+    agent.save_mem()
+    return t
+
 class Feedback(BaseModel):
     took: str  # quicker / as_planned / longer
 
