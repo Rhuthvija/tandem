@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 import os, json, requests
 from pydantic import BaseModel
 import agent
@@ -8,12 +8,26 @@ import agent
 app = FastAPI(title="Tandem")
 history = []  # today's conversation
 
+def trim_history(history, keep=10):
+    """Keep roughly the last `keep` messages.
+
+    Never cuts between an assistant message with tool_calls and its tool
+    results: if the cut lands inside a tool block, it moves back to include
+    the whole block so no orphan tool messages are sent to the model."""
+    if len(history) <= keep:
+        return history
+    cut = len(history) - keep
+    while cut > 0 and history[cut].get("role") == "tool":
+        cut -= 1
+    return history[cut:]
+
 class ChatIn(BaseModel):
     message: str
 
 @app.post("/chat")
 def chat(body: ChatIn):
     global history
+    history = trim_history(history)
     reply, history = agent.chat(body.message, history)
     return {"reply": reply}
 @app.post("/voice")
@@ -35,6 +49,7 @@ async def voice(audio: UploadFile = File(...)):
     if not heard:
         return {"heard": "", "reply": "I didn't catch that. Try again?"}
     global history
+    history = trim_history(history)
     reply, history = agent.chat(heard, history)
     return {"heard": heard, "reply": reply}
 
@@ -68,8 +83,18 @@ def reflection_streak():
         day -= timedelta(days=1)
     return count
 
+def _paint_and_save(date, scene):
+    """Background job: generate the day-card art, then attach it to the saved card."""
+    os.makedirs("static/cards", exist_ok=True)
+    if agent.paint_card(scene, f"static/cards/{date}.png"):
+        card = agent.mem.get("cards", {}).get(date)
+        if card is not None:
+            card["image"] = f"/static/cards/{date}.png"
+            card["image_pending"] = False
+            agent.save_mem()
+
 @app.post("/reflect")
-def reflect(body: Reflection):
+def reflect(body: Reflection, background: BackgroundTasks):
     d = datetime.now().strftime("%Y-%m-%d")
     tasks = [t for t in agent.mem["tasks"] if t["date"] == d]
     done_h = agent.mem.get("habit_log", {}).get(d, [])
@@ -84,17 +109,23 @@ def reflect(body: Reflection):
                 t["date"] = tomorrow
     wins = ", ".join(body.went_well) or "they didn't pick anything, be gentle"
     card = agent.make_day_card(d, done, missed, wins, "", body.mood)
-    os.makedirs("static/cards", exist_ok=True)
-    has_art = agent.paint_card(card.get("scene", ""), f"static/cards/{d}.png")
     card.update({"date": d, "mood": body.mood, "done": len(done), "total": len(done) + len(missed),
-                 "image": f"/static/cards/{d}.png" if has_art else None})
+                 "image": None, "image_pending": True})
     agent.mem.setdefault("cards", {})[d] = card
     agent.save_mem()
+    background.add_task(_paint_and_save, d, card.get("scene", ""))
     return {**card, "streak": reflection_streak(), "week": week_record()}
 
 @app.get("/cards")
 def all_cards():
     return sorted(agent.mem.get("cards", {}).values(), key=lambda c: c["date"], reverse=True)
+
+@app.get("/cards/{date}")
+def one_card(date: str):
+    card = agent.mem.get("cards", {}).get(date)
+    if card is None:
+        raise HTTPException(404, "No card for that date")
+    return card
 
 
 @app.get("/today")
@@ -160,6 +191,7 @@ def push_task(task_id: int, body: Push):
     when = max(when, datetime.now()) + timedelta(minutes=body.minutes)
     t["date"], t["time"] = when.strftime("%Y-%m-%d"), when.strftime("%H:%M")
     agent.save_mem()
+    history = trim_history(history)
     reply, history = agent.chat(
         f"(Check-in) I just pushed '{t['title']}' to {t['time']} on {t['date']}. "
         "If that clashes with anything else today, quietly fix it with move_task. "

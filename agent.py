@@ -6,6 +6,9 @@ from openai import OpenAI
 
 client = OpenAI(base_url="https://api.meta.ai/v1", api_key=os.environ["MODEL_API_KEY"])
 MODEL = "muse-spark-1.3"
+# Meta API reasoning_effort: minimal/low/medium/high/xhigh/max (default medium).
+# "low" is the cheapest level that still plans and calls tools reliably.
+REASONING_EFFORT = "low"
 MEMORY = "memory.json"
 EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "cards": {}, "last_nudge": None}
 def load_mem():
@@ -103,6 +106,7 @@ Planned tasks from today: {json.dumps(upcoming)}
 Yesterday's lesson (from their reflection): {last_lesson}
 
 Rules:
+- Be fast: decide everything you need to do FIRST, then call ALL the tools you need in ONE single turn (several parallel tool calls at once), then write your reply. Never do one tool call per turn when independent calls can go together.
 - Event with a clear date: call add_event, then add_tasks to break it into small tasks (under 90 min) from now until the event.
 - Never schedule anything before they wake up or after their bedtime.
 - Only schedule in FREE time: never inside the fixed routine, never before the current time, no clashes with existing tasks or habits.
@@ -131,7 +135,8 @@ Return ONLY JSON with these keys:
 "lesson": one lesson for tomorrow based on what they said, in plain words (max 18 words)
 "note": one encouraging line from Tandem, honest, not cheesy (max 20 words)
 "scene": a cosy visual scene that captures the day, for an illustration (max 25 words)"""
-    resp = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": prompt}])
+    resp = client.chat.completions.create(model=MODEL, reasoning_effort=REASONING_EFFORT,
+                                          messages=[{"role": "user", "content": prompt}])
     text = resp.choices[0].message.content
     return json.loads(text[text.find("{"): text.rfind("}") + 1])
 
@@ -158,7 +163,8 @@ def chat(user_text, history):
     messages = [{"role": "system", "content": system}] + history + [{"role": "user", "content": user_text}]
 
     while True:  # agent loop
-        resp = client.chat.completions.create(model=MODEL, messages=messages, tools=TOOLS)
+        resp = client.chat.completions.create(model=MODEL, reasoning_effort=REASONING_EFFORT,
+                                              messages=messages, tools=TOOLS)
         msg = resp.choices[0].message
         messages.append(msg.model_dump(exclude_none=True))
         if not msg.tool_calls:

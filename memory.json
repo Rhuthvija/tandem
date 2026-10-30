@@ -9,8 +9,30 @@
   "routine": "eating, sleeping",
   "events": [],
   "tasks": [],
-  "habits": [],
-  "habit_log": {},
-  "cards": {},
-  "last_nudge": "2026-10-29"
+  "habits": [
+    {
+      "title": "Exercise",
+      "minutes": 15,
+      "time": "20:00"
+    }
+  ],
+  "habit_log": {
+    "2026-10-30": [
+      0
+    ]
+  },
+  "cards": {
+    "2026-10-30": {
+      "title": "A Soft Pause Between Busy Chapters",
+      "lesson": "Tomorrow, jot down one tiny moment, calm days deserve remembering too.",
+      "note": "Calm is enough today, Ruby, you don't have to earn rest.",
+      "scene": "A sleepy cat curled on a soft blanket by a rainy window, warm lamplight glowing.",
+      "date": "2026-10-30",
+      "mood": "calm",
+      "done": 0,
+      "total": 0,
+      "image": "/static/cards/2026-10-30.png"
+    }
+  },
+  "last_nudge": "2026-10-30"
 }
