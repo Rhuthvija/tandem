@@ -84,8 +84,9 @@
       "title": "DSA LeetCode practice",
       "date": "2026-10-30",
       "for_event": "To-do",
-      "done": false,
-      "time": "12:30"
+      "done": true,
+      "time": "12:30",
+      "took": "longer"
     }
   ],
   "habits": [
