@@ -10,11 +10,13 @@ MODEL = "muse-spark-1.3"
 # "low" is the cheapest level that still plans and calls tools reliably.
 REASONING_EFFORT = "low"
 MEMORY = "memory.json"
-EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "cards": {}, "last_nudge": None}
+EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "cards": {}, "last_nudge": None, "last_huddle": None, "last_reply": None}
 def load_mem():
     base = json.loads(json.dumps(EMPTY))
     if os.path.exists(MEMORY):
         base.update(json.load(open(MEMORY)))
+    for t in base["tasks"]:  # a restart means any planning job died; keep the item, drop the flag
+        t.pop("planning", None)
     return base
 
 mem = load_mem()
@@ -51,11 +53,24 @@ def move_task(task_id, date, time):
     t["date"], t["time"] = date, time
     return f"↪️ Moved {t['title']} to {date} {time}"
 
+def update_task(task_id, title):
+    if not 0 <= task_id < len(mem["tasks"]):
+        return "No such task"
+    mem["tasks"][task_id]["title"] = title
+    return f"✏️ Renamed to {title}"
+
+def remove_task(task_id):
+    if not 0 <= task_id < len(mem["tasks"]):
+        return "No such task"
+    t = mem["tasks"][task_id]
+    t["removed"] = True
+    return f"🗑️ Removed {t['title']}"
+
 def add_habit(title, minutes, time):
     mem["habits"].append({"title": title, "minutes": minutes, "time": time})
     return f"🔁 Habit: {title} daily at {time}"
 
-FUNCS = {"set_routine": set_routine, "add_event": add_event, "set_event_date": set_event_date, "add_tasks": add_tasks, "add_habit": add_habit, "move_task": move_task}
+FUNCS = {"set_routine": set_routine, "add_event": add_event, "set_event_date": set_event_date, "add_tasks": add_tasks, "add_habit": add_habit, "move_task": move_task, "update_task": update_task, "remove_task": remove_task}
 
 def fn(name, desc, props, required):
     return {"type": "function", "function": {"name": name, "description": desc,
@@ -82,6 +97,12 @@ TOOLS = [
        {"task_id": {"type": "integer"}, "date": {"type": "string", "description": "YYYY-MM-DD"},
         "time": {"type": "string", "description": "HH:MM 24h"}},
        ["task_id", "date", "time"]),
+    fn("update_task", "Rename an existing task (by its id), e.g. to turn a generic prep session into a topic-specific one.",
+       {"task_id": {"type": "integer"}, "title": {"type": "string"}},
+       ["task_id", "title"]),
+    fn("remove_task", "Remove a task (by its id) that is no longer needed, e.g. generic prep replaced by topic-specific sessions. Ids of other tasks stay the same.",
+       {"task_id": {"type": "integer"}},
+       ["task_id"]),
     fn("add_habit", "Add a recurring daily habit (e.g. walking, reading).",
        {"title": {"type": "string"}, "minutes": {"type": "integer"},
         "time": {"type": "string", "description": "HH:MM 24h, in free time"}},
@@ -91,7 +112,7 @@ TOOLS = [
 def system_prompt():
     now = datetime.now()
     today = now.strftime("%Y-%m-%d")
-    upcoming = [{"id": i, **t} for i, t in enumerate(mem["tasks"]) if t["date"] >= today]
+    upcoming = [{"id": i, **t} for i, t in enumerate(mem["tasks"]) if t["date"] >= today and not t.get("removed")]
     profile = mem.get("profile") or {}
     past = sorted(d for d in mem.get("cards", {}) if d < today)
     last_lesson = mem["cards"][past[-1]]["lesson"] if past else "none yet"
@@ -107,13 +128,17 @@ Yesterday's lesson (from their reflection): {last_lesson}
 
 Rules:
 - Be fast: decide everything you need to do FIRST, then call ALL the tools you need in ONE single turn (several parallel tool calls at once), then write your reply. Never do one tool call per turn when independent calls can go together.
-- Event with a clear date: call add_event, then add_tasks to break it into small tasks (under 90 min) from now until the event.
+- Event with a clear date: call add_event right away.
+- Prep-heavy events (exam, test, presentation, interview, project, trip): if the user hasn't said what it covers, do NOT add prep tasks yet. Ask ONE short question about the content, e.g. "Which subject? Send me the topics or syllabus and I'll split them across your free slots."
+- When they answer with topics, call add_tasks with one topic (or a small group) per session (under 90 min), hardest topics in their most productive time, plus a short revision slot right before the event. If generic prep sessions already exist for that event, rename them with update_task or drop them with remove_task instead of duplicating.
+- If they say "just plan it" or don't know the topics, create sensible generic sessions and say they can share topics anytime to make them specific.
+- Light events (birthday, party, appointment): no prep question needed, just add_event.
 - Never schedule anything before they wake up or after their bedtime.
 - Only schedule in FREE time: never inside the fixed routine, never before the current time, no clashes with existing tasks or habits.
 - Max {per_day} BIG tasks (focus work, ~30+ min) per day. Quick to-dos (under ~15 min, like 'buy milk', 'reply to email') don't count toward this limit, add them freely. Put the hardest tasks in their most productive time.
 - Recurring things ("every day", "10k steps") are habits: call add_habit.
 - Work out relative dates yourself (tomorrow, day after, this Friday).
-- If a date is truly unknown, STILL call add_event with date 'unknown' right away so it shows up, then ask for the date. When they answer, call set_event_date, then add_tasks.
+- If a date is truly unknown, STILL call add_event with date 'unknown' right away so it shows up, then ask for the date. When they answer, call set_event_date, then plan prep like any dated event (ask what a prep-heavy event covers before adding tasks).
 - If the user describes their routine, call set_routine first.
 - If you pick a time the user didn't give, say so in your reply and invite them to change it.
 - Small same-day to-dos with no bigger event are just tasks (add_tasks with for_event "To-do"), NOT events.
@@ -181,7 +206,7 @@ def chat(user_text, history):
 
 def print_today():
     today = datetime.now().strftime("%Y-%m-%d")
-    items = [(t["time"], t["title"]) for t in mem["tasks"] if t["date"] == today]
+    items = [(t["time"], t["title"]) for t in mem["tasks"] if t["date"] == today and not t.get("removed")]
     items += [(h["time"], f"{h['title']} ({h['minutes']} min)") for h in mem["habits"]]
     print("\n☀️ Today's plan:")
     for time, title in sorted(items):

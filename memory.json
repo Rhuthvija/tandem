@@ -7,8 +7,87 @@
     "per_day": 3
   },
   "routine": "eating, sleeping",
-  "events": [],
-  "tasks": [],
+  "events": [
+    {
+      "title": "Exam",
+      "date": "2026-10-31",
+      "kind": "exam"
+    },
+    {
+      "title": "DBMS",
+      "date": "2026-11-02",
+      "kind": "exam"
+    }
+  ],
+  "tasks": [
+    {
+      "date": "2026-10-30",
+      "for_event": "Exam",
+      "size": "big",
+      "time": "11:00",
+      "title": "Exam prep - core concepts review",
+      "done": true,
+      "took": "as_planned"
+    },
+    {
+      "date": "2026-10-31",
+      "for_event": "Exam",
+      "size": "big",
+      "time": "19:00",
+      "title": "Exam prep - hardest topics + practice questions",
+      "done": false
+    },
+    {
+      "date": "2026-10-31",
+      "for_event": "Exam",
+      "size": "quick",
+      "time": "07:30",
+      "title": "Light final glance + pack for exam",
+      "done": false
+    },
+    {
+      "date": "2026-10-30",
+      "for_event": "DBMS",
+      "size": "big",
+      "time": "15:00",
+      "title": "DBMS prep - database vs file system + SQL foundation",
+      "done": true,
+      "took": "as_planned"
+    },
+    {
+      "date": "2026-11-01",
+      "for_event": "DBMS",
+      "size": "big",
+      "time": "15:00",
+      "title": "DBMS prep - SQL foundation",
+      "done": false,
+      "removed": true
+    },
+    {
+      "date": "2026-10-30",
+      "for_event": "DBMS",
+      "size": "big",
+      "time": "21:00",
+      "title": "DBMS prep - indexing",
+      "done": true,
+      "took": "longer"
+    },
+    {
+      "date": "2026-10-31",
+      "for_event": "DBMS",
+      "size": "quick",
+      "time": "08:00",
+      "title": "DBMS - light final glance + pack",
+      "done": false
+    },
+    {
+      "title": "DSA LeetCode practice",
+      "date": "2026-10-30",
+      "for_event": "To-do",
+      "done": false,
+      "time": "12:30"
+    }
+  ],
   "habits": [
     {
       "title": "Exercise",
@@ -34,5 +113,7 @@
       "image": "/static/cards/2026-10-30.png"
     }
   },
-  "last_nudge": "2026-10-30"
+  "last_nudge": "2026-10-30",
+  "last_huddle": "2026-10-30",
+  "last_reply": "Got it, Ruby \u2014 slotted your DSA LeetCode practice in today at 12:30."
 }
