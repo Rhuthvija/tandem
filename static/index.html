@@ -113,6 +113,29 @@
   .checkin-actions { display:flex; flex-direction:column; gap:8px; }
   .checkin-actions button { font:inherit; font-size:15px; font-weight:700; padding:14px; border-radius:14px; cursor:pointer; border:1.5px solid #DCD6EC; background:#fff; color:var(--ink); }
   .checkin-actions .go { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .empty-card { background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:24px 18px; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
+  .empty-card img { width:120px; height:120px; object-fit:cover; border-radius:28px; display:block; background:var(--brand-soft); }
+  .empty-card p { margin:0; font-size:17px; font-weight:700; line-height:1.4; }
+  .sugg-list { display:flex; flex-direction:column; gap:8px; width:100%; }
+  .sugg { font:inherit; font-size:14px; font-weight:700; padding:13px 16px; border-radius:16px; border:1.5px solid #DCD6EC; background:#fff; color:var(--ink); cursor:pointer; width:100%; min-height:48px; }
+  .sugg:hover { border-color:var(--brand); }
+  .sugg:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+  .you { font-weight:600; margin-bottom:6px; overflow-wrap:anywhere; }
+  .planning { font-size:13px; font-weight:700; color:var(--brand); }
+  .pdots span { animation:blink 1.2s infinite; }
+  .pdots span:nth-child(2) { animation-delay:.2s; }
+  .pdots span:nth-child(3) { animation-delay:.4s; }
+  @keyframes blink { 0%,100% { opacity:.2; } 50% { opacity:1; } }
+  .daycard img { opacity:0; transition:opacity .6s ease; }
+  .daycard img.ready { opacity:1; }
+  .paint-ph { aspect-ratio:1; display:grid; place-items:center; font-size:14px; font-weight:700; color:var(--muted);
+    background:repeating-linear-gradient(45deg, rgba(84,67,184,.05) 0 2px, transparent 2px 7px),
+    linear-gradient(135deg, #F1ECFA, #FCEFE3); }
+  .paint-ph[hidden] { display:none; }
+  @media (prefers-reduced-motion: reduce) {
+    .daycard img { transition:none; }
+    .pdots span { animation:none; }
+  }
 </style>
 </head>
 <body>
@@ -132,11 +155,11 @@
     <div class="ring" title="Today's card colour">
       <svg width="64" height="64"><circle cx="32" cy="32" r="26" fill="none" stroke="#E4DFF7" stroke-width="7"/>
         <circle id="ringFill" cx="32" cy="32" r="26" fill="none" stroke="#5443B8" stroke-width="7" stroke-linecap="round" stroke-dasharray="163.4" stroke-dashoffset="163.4" style="transition:stroke-dashoffset .5s"/></svg>
-      <span id="ringText">0%</span>
+      <span id="ringText"></span>
     </div>
   </header>
 
-  <div class="section-label">COMING UP</div>
+  <div class="section-label" id="comingLabel">COMING UP</div>
   <div class="chips" id="chips"></div>
 
   <div class="next" id="next" style="display:none">
@@ -149,9 +172,9 @@
 
   <section class="plan">
     <div class="plan-head"><h2>Today's plan</h2><span><button class="bell" id="bell" hidden>🔔 Remind me</button> <span class="status" id="status"></span></span></div>
-    <div class="bar"><div id="bar" style="width:0%"></div></div>
+    <div class="bar" id="barWrap"><div id="bar" style="width:0%"></div></div>
     <div id="list"></div>
-    <button class="wrap" id="wrapBtn">🌙 Wrap up my day</button>
+    <button class="wrap" id="wrapBtn" style="display:none">🌙 Wrap up my day</button>
   </section>
 </div>
 
@@ -204,6 +227,7 @@
 <div class="modal" id="cardModal" hidden>
   <div class="daycard" role="dialog" aria-labelledby="dcTitle">
     <img id="dcImg" alt="Illustration of your day">
+    <div id="dcPaint" class="paint-ph" hidden>painting… 🎨</div>
     <div class="body">
       <div class="meta" id="dcMeta"></div>
       <h2 id="dcTitle"></h2>
@@ -348,16 +372,29 @@ async function load() {
   $("date").textContent = now.toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long" });
 
   const chips = $("chips"); chips.innerHTML = "";
-  if (!data.upcoming.length) chips.append(el("span","chip","Nothing yet. Tell Tandem what's coming up!"));
-  data.upcoming.forEach(e => {
-    if (e.date === "unknown") chips.append(el("span", "chip tbd", `📅 date? · ${e.title}`));
-    else chips.append(el("span", "chip" + (e.kind === "exam" ? " exam" : ""), `${fmtDate(e.date)} · ${e.title}`));
-  });
+  if (!data.upcoming.length) {
+    $("comingLabel").style.display = "none";
+    chips.style.display = "none";
+  } else {
+    $("comingLabel").style.display = "";
+    chips.style.display = "";
+    data.upcoming.forEach(e => {
+      if (e.date === "unknown") chips.append(el("span", "chip tbd", `📅 date? · ${e.title}`));
+      else chips.append(el("span", "chip" + (e.kind === "exam" ? " exam" : ""), `${fmtDate(e.date)} · ${e.title}`));
+    });
+  }
 
   const pct = data.total ? Math.round(100 * data.done / data.total) : 0;
-  $("bar").style.width = pct + "%";
-  $("ringFill").style.strokeDashoffset = 163.4 * (1 - pct / 100);
-  $("ringText").textContent = pct + "%";
+  if (!data.total) {
+    $("barWrap").style.display = "none";
+    $("ringFill").style.strokeDashoffset = 163.4;
+    $("ringText").textContent = "";
+  } else {
+    $("barWrap").style.display = "";
+    $("bar").style.width = pct + "%";
+    $("ringFill").style.strokeDashoffset = 163.4 * (1 - pct / 100);
+    $("ringText").textContent = pct + "%";
+  }
   $("status").textContent = data.total ? `${data.done} of ${data.total} done` : "";
 
   const items = [
@@ -380,7 +417,30 @@ async function load() {
   }
 
   const list = $("list"); list.innerHTML = "";
-  if (!items.length) list.append(el("div","empty","No plan yet. Tell Tandem about your day below 👇"));
+  if (!items.length) {
+    const card = el("div", "empty-card");
+    const img = document.createElement("img");
+    img.src = "static/mascot/otter_base.png";
+    img.alt = "Tandem otter mascot";
+    img.width = 120; img.height = 120; img.loading = "lazy";
+    card.append(img);
+    card.append(el("p", null, `What's on your plate today, ${profile?.name || "friend"}?`));
+    const sugg = el("div", "sugg-list");
+    const b1 = el("button", "sugg", "🗓️ Plan my day"); b1.type = "button";
+    b1.onclick = () => sendChat("🗓️ Plan my day");
+    const days = String(profile?.days ?? "").trim().toLowerCase();
+    let midLabel = "⏳ Something's coming up", midPrefill = "I have something coming up: ";
+    if (days === "studying") { midLabel = "📚 Exam or assignment coming up"; midPrefill = "I have an exam or assignment coming up: "; }
+    else if (days === "working") { midLabel = "💼 Meeting or deadline coming up"; midPrefill = "I have a meeting or deadline coming up: "; }
+    const b2 = el("button", "sugg", midLabel); b2.type = "button";
+    b2.onclick = () => { $("msg").value = midPrefill; $("msg").focus(); };
+    const b3 = el("button", "sugg", "🔁 Start a daily habit"); b3.type = "button";
+    b3.onclick = () => { $("msg").value = "I want to start a daily habit of "; $("msg").focus(); };
+    sugg.append(b1, b2, b3);
+    card.append(sugg);
+    list.append(card);
+  }
+  updateWrapVisibility(now);
   items.forEach(it => {
     const row = el("label", "item" + (it.done ? " done" : ""));
     row.append(el("span","time", it.time || "--:--"));
@@ -415,18 +475,60 @@ async function complete(item) {
   load();
 }
 
-$("form").onsubmit = async e => {
-  e.preventDefault();
-  const text = $("msg").value.trim(); if (!text) return;
-  $("msg").value = ""; $("send").disabled = true;
-  $("reply").textContent = "Tandem is thinking…"; $("reply").classList.add("show");
+function planningEl(text) {
+  const p = el("div", "planning");
+  p.append(document.createTextNode(text));
+  const d = el("span", "pdots");
+  for (let i = 0; i < 3; i++) d.append(el("span", null, "."));
+  p.append(d);
+  return p;
+}
+
+let chatBusy = false;
+async function sendChat(text) {
+  text = (text || "").trim(); if (!text || chatBusy) return;
+  chatBusy = true; $("send").disabled = true;
+  const r = $("reply"); r.innerHTML = "";
+  r.append(el("div", "you", "You: " + text));
+  r.append(planningEl("Tandem is planning"));
+  r.classList.add("show");
   try {
     const res = await fetch("/chat", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ message:text }) });
     $("reply").textContent = "🤝 " + (await res.json()).reply;
     load();
   } catch { $("reply").textContent = "Couldn't reach Tandem. Is the server running?"; }
-  $("send").disabled = false;
+  chatBusy = false; $("send").disabled = false;
+}
+
+$("form").onsubmit = async e => {
+  e.preventDefault();
+  const text = $("msg").value.trim(); if (!text) return;
+  $("msg").value = "";
+  await sendChat(text);
 };
+
+function shouldShowWrapUp(now, sleep) {
+  if (!sleep || typeof sleep !== "string" || !/^\d{1,2}:\d{2}$/.test(sleep)) {
+    return now.getHours() >= 18;
+  }
+  const [bh, bm] = sleep.split(":").map(Number);
+  if (Number.isNaN(bh) || Number.isNaN(bm) || bh < 0 || bh > 23 || bm < 0 || bm > 59) {
+    return now.getHours() >= 18;
+  }
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const bedMins = bh * 60 + bm;
+  const until = (bedMins - nowMins + 1440) % 1440;
+  if (until <= 120) return true;
+  const since = (nowMins - bedMins + 1440) % 1440;
+  if (since <= 180) return true;
+  return false;
+}
+
+function updateWrapVisibility(now) {
+  const t = now || new Date();
+  $("wrapBtn").style.display = shouldShowWrapUp(t, profile?.sleep) ? "" : "none";
+}
+setInterval(updateWrapVisibility, 60000);
 /* ---------------- VOICE ---------------- */
 let audioCtx, source, processor, stream, chunks = [], recording = false;
 
@@ -471,17 +573,22 @@ $("mic").onclick = async () => {
   } else {
     recording = false; $("mic").classList.remove("rec");
     const wav = stopRec();
-    showReply("Got it, thinking…");
+    showReply("Listening done, transcribing…");
+    let voiceDone = false;
+    setTimeout(() => {
+      if (!voiceDone) { $("reply").innerHTML = ""; $("reply").append(planningEl("Planning")); $("reply").classList.add("show"); }
+    }, 2500);
     const fd = new FormData(); fd.append("audio", wav, "speech.wav");
     try {
       const res = await fetch("/voice", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "error");
+      voiceDone = true;
       $("reply").innerHTML = "";
       if (data.heard) $("reply").append(el("div", "heard", `You said: "${data.heard}"`));
       $("reply").append(el("div", null, "🤝 " + data.reply));
       load();
-    } catch (err) { showReply("Voice didn't go through: " + err.message); }
+    } catch (err) { voiceDone = true; showReply("Voice didn't go through: " + err.message); }
   }
 };
 /* ---------------- EVENING REFLECTION ---------------- */
@@ -599,9 +706,40 @@ $("ciSkip").onclick = async () => {
 };
 
 
+let artTimer = null;
+function revealCardArt(src) {
+  const img = $("dcImg");
+  img.classList.remove("ready");
+  img.onload = () => img.classList.add("ready");
+  img.onerror = () => { img.style.display = "none"; $("dcPaint").hidden = false; };
+  img.style.display = "block";
+  $("dcPaint").hidden = true;
+  img.src = src + "?v=" + Date.now();
+}
+
 function showCard(c) {
-  $("dcImg").style.display = c.image ? "block" : "none";
-  if (c.image) $("dcImg").src = c.image + "?v=" + Date.now();
+  if (artTimer) { clearInterval(artTimer); artTimer = null; }
+  if (c.image) {
+    revealCardArt(c.image);
+  } else {
+    $("dcImg").classList.remove("ready");
+    $("dcImg").style.display = "none";
+    $("dcImg").removeAttribute("src");
+    $("dcPaint").hidden = false;
+    if (c.image_pending) {
+      artTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`/cards/${c.date}`);
+          if (!r.ok) return;
+          const fresh = await r.json();
+          if (fresh.image) {
+            clearInterval(artTimer); artTimer = null;
+            revealCardArt(fresh.image);
+          }
+        } catch { /* keep polling */ }
+      }, 3000);
+    }
+  }
   $("dcMeta").textContent = `${fmtDate(c.date).toUpperCase()} · ${c.done} OF ${c.total} DONE`;
   $("dcTitle").textContent = c.title;
   $("dcLesson").textContent = "💡 " + c.lesson;
@@ -610,7 +748,7 @@ function showCard(c) {
   $("dcStreak").textContent = c.streak > 1 ? `🔥 ${c.streak}-day reflection streak` : "🌱 Day 1 of your reflection streak";
   $("cardModal").hidden = false;
 }
-$("dcClose").onclick = () => $("cardModal").hidden = true;
+$("dcClose").onclick = () => { if (artTimer) { clearInterval(artTimer); artTimer = null; } $("cardModal").hidden = true; };
 /* ---------------- START ---------------- */
 (async () => {
   profile = (await (await fetch("/profile")).json()).profile;
