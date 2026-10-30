@@ -30,9 +30,7 @@ def chat(body: ChatIn):
     history = trim_history(history)
     reply, history = agent.chat(body.message, history)
     return {"reply": reply}
-@app.post("/voice")
-async def voice(audio: UploadFile = File(...)):
-    wav = await audio.read()
+def _transcribe(wav: bytes) -> str:
     r = requests.post(
         "https://api.meta.ai/v1/asr/transcribe",
         headers={"Authorization": f"Bearer {os.environ['MODEL_API_KEY']}", "Accept": "text/plain"},
@@ -45,13 +43,71 @@ async def voice(audio: UploadFile = File(...)):
     )
     if r.status_code != 200:
         raise HTTPException(502, f"Transcription failed: {r.text[:200]}")
-    heard = " ".join(line.strip() for line in r.text.splitlines() if line.strip())
+    return " ".join(line.strip() for line in r.text.splitlines() if line.strip())
+
+@app.post("/transcribe")
+async def transcribe(audio: UploadFile = File(...)):
+    return {"heard": _transcribe(await audio.read())}
+
+@app.post("/voice")
+async def voice(audio: UploadFile = File(...)):
+    heard = _transcribe(await audio.read())
     if not heard:
         return {"heard": "", "reply": "I didn't catch that. Try again?"}
     global history
     history = trim_history(history)
     reply, history = agent.chat(heard, history)
     return {"heard": heard, "reply": reply}
+
+class HuddleIn(BaseModel):
+    energy: str
+
+@app.post("/huddle")
+def huddle(body: HuddleIn):
+    """Morning huddle: review the day and propose a realistic plan."""
+    global history
+    history = trim_history(history)
+    reply, history = agent.chat(
+        f"Morning huddle. Energy: {body.energy}. Review today's tasks (including ones "
+        "carried over), habits, upcoming events and yesterday's lesson. Propose a realistic "
+        "plan for today: respect the big-task limit, go lighter if energy is low. Use "
+        "add_tasks/move_task for prep work for upcoming events. If today is overloaded, push "
+        "back honestly and suggest what to move to another day, but don't move it without "
+        "asking. Reply with a warm 2-3 sentence summary.", history)
+    agent.mem["last_huddle"] = datetime.now().strftime("%Y-%m-%d")
+    agent.save_mem()
+    return {"reply": reply}
+
+class QuickAddIn(BaseModel):
+    text: str
+
+def _plan_quick_add(task_id, text):
+    """Background job: turn a quick-add placeholder into proper events/tasks."""
+    global history
+    try:
+        history = trim_history(history)
+        reply, history = agent.chat(
+            f"(Quick add, placeholder task id {task_id}) {text}. Turn this into proper "
+            "events/tasks: rename/re-time the placeholder with update_task/move_task, or "
+            "remove_task it if it's just an event. Then reply in one short line.", history)
+    except Exception as e:
+        print("Quick-add planning failed:", e)
+        reply = "Couldn't plan that one, it's on your list as-is."
+    if 0 <= task_id < len(agent.mem["tasks"]):
+        agent.mem["tasks"][task_id].pop("planning", None)
+    agent.mem["last_reply"] = reply
+    agent.save_mem()
+
+@app.post("/quick-add")
+def quick_add(body: QuickAddIn, background: BackgroundTasks):
+    """Save the user's text as a placeholder instantly; plan it in the background."""
+    task = {"title": body.text, "date": datetime.now().strftime("%Y-%m-%d"),
+            "for_event": "To-do", "done": False, "planning": True}
+    agent.mem["tasks"].append(task)
+    task_id = len(agent.mem["tasks"]) - 1
+    agent.save_mem()
+    background.add_task(_plan_quick_add, task_id, body.text)
+    return {"task": {"id": task_id, **task}}
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -63,7 +119,7 @@ class Reflection(BaseModel):
 def week_record():
     """Tasks + habits done vs planned over the last 7 days."""
     days = {str(datetime.now().date() - timedelta(days=i)) for i in range(7)}
-    tasks = [t for t in agent.mem["tasks"] if t["date"] in days]
+    tasks = [t for t in agent.mem["tasks"] if t["date"] in days and not t.get("removed")]
     log = agent.mem.get("habit_log", {})
     habit_done = sum(len(v) for d, v in log.items() if d in days)
     active_days = len({t["date"] for t in tasks} | {d for d in log if d in days}) or 1
@@ -96,7 +152,7 @@ def _paint_and_save(date, scene):
 @app.post("/reflect")
 def reflect(body: Reflection, background: BackgroundTasks):
     d = datetime.now().strftime("%Y-%m-%d")
-    tasks = [t for t in agent.mem["tasks"] if t["date"] == d]
+    tasks = [t for t in agent.mem["tasks"] if t["date"] == d and not t.get("removed")]
     done_h = agent.mem.get("habit_log", {}).get(d, [])
     habits = agent.mem["habits"]
     done = [t["title"] for t in tasks if t["done"]] + [h["title"] for i, h in enumerate(habits) if i in done_h]
@@ -131,7 +187,7 @@ def one_card(date: str):
 @app.get("/today")
 def today():
     d = datetime.now().strftime("%Y-%m-%d")
-    tasks = [{"id": i, **t} for i, t in enumerate(agent.mem["tasks"]) if t["date"] == d]
+    tasks = [{"id": i, **t} for i, t in enumerate(agent.mem["tasks"]) if t["date"] == d and not t.get("removed")]
     tasks.sort(key=lambda t: t.get("time", ""))
     done_habits = agent.mem.setdefault("habit_log", {}).get(d, [])
     habits = [{"id": i, **h, "done": i in done_habits} for i, h in enumerate(agent.mem["habits"])]
@@ -144,6 +200,8 @@ def today():
         "done": sum(t["done"] for t in tasks) + sum(h["done"] for h in habits),
         "total": len(tasks) + len(habits),
         "reflected": d in agent.mem.get("cards", {}),
+        "huddled": agent.mem.get("last_huddle") == d,
+        "last_reply": agent.mem.get("last_reply"),
     }
 
 @app.post("/tasks/{task_id}/done")

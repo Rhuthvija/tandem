@@ -136,6 +136,23 @@
     .daycard img { transition:none; }
     .pdots span { animation:none; }
   }
+  #hEnergyWrap { display:flex; flex-direction:column; gap:12px; }
+  #hEnergyWrap[hidden] { display:none; }
+  #hResult { display:flex; flex-direction:column; gap:12px; }
+  #hResult[hidden] { display:none; }
+  .hreply { background:var(--brand-soft); padding:12px 14px; border-radius:16px; font-size:14px; }
+  .hplan { display:flex; flex-direction:column; }
+  .hrow { display:flex; align-items:center; gap:10px; min-height:48px; border-bottom:1px solid var(--line); }
+  .hrow .time { width:46px; flex-shrink:0; font-size:12px; font-weight:600; color:var(--muted); }
+  .hrow .title { flex:1; font-size:14px; font-weight:500; }
+  .notoday { font:inherit; font-size:12px; font-weight:700; padding:8px 10px; border-radius:10px; border:1px solid #DCD6EC; background:#fff; color:var(--err); cursor:pointer; white-space:nowrap; }
+  .item.planning { border-radius:12px; background:linear-gradient(100deg, transparent 30%, rgba(84,67,184,.10) 50%, transparent 70%); background-size:200% 100%; animation:shimmer 1.6s infinite; }
+  @keyframes shimmer { 0% { background-position:100% 0; } 100% { background-position:-100% 0; } }
+  .plan-tag { font-size:11px; font-weight:700; color:var(--brand); background:var(--brand-soft); padding:3px 8px; border-radius:8px; white-space:nowrap; }
+  .note { font-size:13px; }
+  @media (prefers-reduced-motion: reduce) {
+    .item.planning { animation:none; background:var(--brand-soft); }
+  }
 </style>
 </head>
 <body>
@@ -248,6 +265,27 @@
       <button class="go" id="ciStart">▶ Let's start</button>
       <button id="ciPush">⏰ Push 30 min</button>
       <button id="ciSkip">🌱 Not today, move to tomorrow</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="huddle" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="hTitle">
+    <h2 id="hTitle"></h2>
+    <div id="hEnergyWrap">
+      <div class="moods" id="hEnergy">
+        <button type="button" data-energy="low">🪫 Low</button>
+        <button type="button" data-energy="okay">🙂 Okay</button>
+        <button type="button" data-energy="high">⚡ High</button>
+      </div>
+      <button class="skip" id="hSkip">Not now</button>
+    </div>
+    <div id="hResult" hidden>
+      <div class="hreply" id="hReply"></div>
+      <div class="hplan" id="hPlan"></div>
+      <div class="checkin-actions" id="hActions">
+        <button class="go" id="hGood">👍 Looks good</button>
+        <button id="hChange">🗣️ Change something</button>
+      </div>
     </div>
   </div>
 </div>
@@ -427,7 +465,7 @@ async function load() {
     card.append(el("p", null, `What's on your plate today, ${profile?.name || "friend"}?`));
     const sugg = el("div", "sugg-list");
     const b1 = el("button", "sugg", "🗓️ Plan my day"); b1.type = "button";
-    b1.onclick = () => sendChat("🗓️ Plan my day");
+    b1.onclick = () => openHuddle();
     const days = String(profile?.days ?? "").trim().toLowerCase();
     let midLabel = "⏳ Something's coming up", midPrefill = "I have something coming up: ";
     if (days === "studying") { midLabel = "📚 Exam or assignment coming up"; midPrefill = "I have an exam or assignment coming up: "; }
@@ -448,8 +486,11 @@ async function load() {
     box.onchange = () => complete(it);
     row.append(box, el("span","title", it.title));
     if (it.kind === "habit") row.append(el("span","tag","daily"));
+    if (it.planning) { row.classList.add("planning"); row.append(el("span","plan-tag","✨ planning…")); }
     list.append(row);
   });
+  if (items.some(i => i.planning)) ensurePlanningPoll();
+  maybeAutoHuddle(data);
 }
 
 let ccItem = null;
@@ -484,27 +525,45 @@ function planningEl(text) {
   return p;
 }
 
-let chatBusy = false;
-async function sendChat(text) {
-  text = (text || "").trim(); if (!text || chatBusy) return;
-  chatBusy = true; $("send").disabled = true;
-  const r = $("reply"); r.innerHTML = "";
-  r.append(el("div", "you", "You: " + text));
-  r.append(planningEl("Tandem is planning"));
-  r.classList.add("show");
-  try {
-    const res = await fetch("/chat", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ message:text }) });
-    $("reply").textContent = "🤝 " + (await res.json()).reply;
-    load();
-  } catch { $("reply").textContent = "Couldn't reach Tandem. Is the server running?"; }
-  chatBusy = false; $("send").disabled = false;
+let planTimer = null, planWasPending = false;
+function ensurePlanningPoll() {
+  planWasPending = true;
+  if (planTimer) return;
+  planTimer = setInterval(async () => {
+    try {
+      const data = await (await fetch("/today")).json();
+      const pending = [...data.tasks, ...data.habits].some(i => i.planning);
+      if (pending) return;
+      clearInterval(planTimer); planTimer = null;
+      await load();
+      if (planWasPending && data.last_reply) {
+        $("reply").innerHTML = "";
+        $("reply").append(el("div", "note", "🤝 " + data.last_reply));
+        $("reply").classList.add("show");
+      }
+      planWasPending = false;
+    } catch { /* keep polling */ }
+  }, 1500);
 }
 
-$("form").onsubmit = async e => {
+async function sendQuick(text, echo) {
+  text = (text || "").trim(); if (!text) return;
+  if (echo) {
+    const r = $("reply"); r.innerHTML = "";
+    r.append(el("div", "heard", echo));
+    r.classList.add("show");
+  }
+  try {
+    await fetch("/quick-add", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ text }) });
+    load();
+  } catch { showReply("Couldn't reach Tandem. Is the server running?"); }
+}
+
+$("form").onsubmit = e => {
   e.preventDefault();
   const text = $("msg").value.trim(); if (!text) return;
   $("msg").value = "";
-  await sendChat(text);
+  sendQuick(text);
 };
 
 function shouldShowWrapUp(now, sleep) {
@@ -574,21 +633,14 @@ $("mic").onclick = async () => {
     recording = false; $("mic").classList.remove("rec");
     const wav = stopRec();
     showReply("Listening done, transcribing…");
-    let voiceDone = false;
-    setTimeout(() => {
-      if (!voiceDone) { $("reply").innerHTML = ""; $("reply").append(planningEl("Planning")); $("reply").classList.add("show"); }
-    }, 2500);
     const fd = new FormData(); fd.append("audio", wav, "speech.wav");
     try {
-      const res = await fetch("/voice", { method: "POST", body: fd });
+      const res = await fetch("/transcribe", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "error");
-      voiceDone = true;
-      $("reply").innerHTML = "";
-      if (data.heard) $("reply").append(el("div", "heard", `You said: "${data.heard}"`));
-      $("reply").append(el("div", null, "🤝 " + data.reply));
-      load();
-    } catch (err) { voiceDone = true; showReply("Voice didn't go through: " + err.message); }
+      if (!data.heard) { showReply("I didn't catch that. Try again?"); return; }
+      sendQuick(data.heard, `You said: "${data.heard}"`);
+    } catch (err) { showReply("Voice didn't go through: " + err.message); }
   }
 };
 /* ---------------- EVENING REFLECTION ---------------- */
@@ -749,6 +801,79 @@ function showCard(c) {
   $("cardModal").hidden = false;
 }
 $("dcClose").onclick = () => { if (artTimer) { clearInterval(artTimer); artTimer = null; } $("cardModal").hidden = true; };
+/* ---------------- MORNING HUDDLE ---------------- */
+let huddleAutoShown = false;
+
+function openHuddle() {
+  $("hTitle").textContent = `Morning, ${profile?.name || "friend"} ☀️ How's your energy today?`;
+  $("hEnergyWrap").hidden = false;
+  $("hResult").hidden = true;
+  document.querySelectorAll("#hEnergy button").forEach(b => b.classList.remove("picked"));
+  $("huddle").hidden = false;
+}
+$("hSkip").onclick = () => $("huddle").hidden = true;
+
+document.querySelectorAll("#hEnergy button").forEach(b => b.onclick = async () => {
+  document.querySelectorAll("#hEnergy button").forEach(x => x.classList.toggle("picked", x === b));
+  $("hEnergyWrap").hidden = true;
+  const res = $("hResult"); res.hidden = false;
+  $("hActions").style.display = "none";
+  const reply = $("hReply"); reply.innerHTML = ""; reply.append(planningEl("Tandem is planning your day"));
+  $("hPlan").innerHTML = "";
+  try {
+    const r = await fetch("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy: b.dataset.energy }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "error");
+    reply.textContent = "🤝 " + data.reply;
+    renderHuddlePlan(await (await fetch("/today")).json());
+    $("hActions").style.display = "";
+    load();
+  } catch (err) {
+    res.hidden = true;
+    $("hEnergyWrap").hidden = false;
+    toast("Couldn't plan your day: " + err.message);
+  }
+});
+
+function renderHuddlePlan(data) {
+  const plan = $("hPlan"); plan.innerHTML = "";
+  const items = [
+    ...data.tasks.map(t => ({ ...t, kind:"task" })),
+    ...data.habits.map(hb => ({ id:hb.id, time:hb.time, kind:"habit", title:`${hb.title} (${hb.minutes} min)` })),
+  ].sort((a,b) => (a.time||"").localeCompare(b.time||""));
+  if (!items.length) plan.append(el("div", "empty", "Nothing on the plan yet — a light day 🌱"));
+  items.forEach(it => {
+    const row = el("div", "hrow");
+    row.append(el("span", "time", it.time || "--:--"));
+    row.append(el("span", "title", it.title));
+    if (it.kind === "habit") row.append(el("span", "tag", "daily"));
+    if (it.planning) row.append(el("span", "plan-tag", "✨ planning…"));
+    else {
+      const no = el("button", "notoday", "✕ not today"); no.type = "button";
+      no.setAttribute("aria-label", `Move ${it.title} to tomorrow`);
+      no.onclick = async () => {
+        await fetch(`/tasks/${it.id}/skip`, { method: "POST" });
+        row.remove();
+        toast("Moved to tomorrow, no stress 🌱");
+      };
+      row.append(no);
+    }
+    plan.append(row);
+  });
+}
+
+$("hGood").onclick = () => { $("huddle").hidden = true; load(); };
+$("hChange").onclick = () => { $("huddle").hidden = true; $("msg").focus(); };
+
+function maybeAutoHuddle(data) {
+  if (huddleAutoShown || !$("huddle").hidden || data.huddled) return;
+  if (!$("checkin").hidden || !$("cc").hidden || !$("reflectModal").hidden || !$("cardModal").hidden) return;
+  const wake = profile?.wake;
+  if (!wake || !/^\d{1,2}:\d{2}$/.test(wake)) return;
+  if (new Date().toTimeString().slice(0, 5) < wake) return;
+  huddleAutoShown = true;
+  openHuddle();
+}
 /* ---------------- START ---------------- */
 (async () => {
   profile = (await (await fetch("/profile")).json()).profile;
