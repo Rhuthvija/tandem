@@ -165,17 +165,35 @@ Return ONLY JSON with these keys:
     text = resp.choices[0].message.content
     return json.loads(text[text.find("{"): text.rfind("}") + 1])
 
+MASCOT_PATH = "static/mascot/otter_base.png"
+OTTER = ("a small, chubby purple sea otter made of layered cut construction paper, "
+         "with a cream paper belly and a tiny orange scarf")
+
+def _save_art(result, path):
+    img = result.data[0]
+    if getattr(img, "b64_json", None):
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(img.b64_json))
+    else:
+        urllib.request.urlretrieve(img.url, path)
+
 def paint_card(scene, path):
+    base = ("Handmade paper cut-out illustration made of layered torn construction paper, visible paper grain, "
+            "soft lilac and warm orange palette, cosy and calm, no text. Scene: " + scene)
+    try:  # edit mode: keep our mascot otter in the scene
+        # otter_base.png holds WebP bytes; declare the true MIME type explicitly
+        with open(MASCOT_PATH, "rb") as f:
+            mascot = ("otter_base.webp", f.read(), "image/webp")
+        result = client.images.edit(model="muse-image-1.0", image=mascot,
+                                    prompt=base + f" Feature the same {OTTER} from the reference image in the scene.")
+        _save_art(result, path)
+        return True
+    except Exception as e:
+        print("Card art edit failed, falling back to generation:", e)
     try:
-        result = client.images.generate(model="muse-image-1.0", prompt=(
-            "Handmade paper cut-out illustration made of layered torn construction paper, visible paper grain, "
-            "soft lilac and warm orange palette, cosy and calm, no text. Scene: " + scene))
-        img = result.data[0]
-        if getattr(img, "b64_json", None):
-            with open(path, "wb") as f:
-                f.write(base64.b64decode(img.b64_json))
-        else:
-            urllib.request.urlretrieve(img.url, path)
+        result = client.images.generate(model="muse-image-1.0",
+                                        prompt=base + f" Featuring {OTTER}.")
+        _save_art(result, path)
         return True
     except Exception as e:
         print("Card art failed:", e)

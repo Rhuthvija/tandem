@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
+from calendar import monthrange
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
-import os, json, requests
+import os, json, re, requests
 from pydantic import BaseModel
 import agent
 
@@ -142,12 +143,13 @@ def reflection_streak():
 def _paint_and_save(date, scene):
     """Background job: generate the day-card art, then attach it to the saved card."""
     os.makedirs("static/cards", exist_ok=True)
+    card = agent.mem.get("cards", {}).get(date)
+    if card is None:
+        return
     if agent.paint_card(scene, f"static/cards/{date}.png"):
-        card = agent.mem.get("cards", {}).get(date)
-        if card is not None:
-            card["image"] = f"/static/cards/{date}.png"
-            card["image_pending"] = False
-            agent.save_mem()
+        card["image"] = f"/static/cards/{date}.png"
+    card["image_pending"] = False
+    agent.save_mem()
 
 @app.post("/reflect")
 def reflect(body: Reflection, background: BackgroundTasks):
@@ -182,6 +184,24 @@ def one_card(date: str):
     if card is None:
         raise HTTPException(404, "No card for that date")
     return card
+
+@app.get("/calendar")
+def calendar_view(month: str):
+    """Per-day events, tasks and day-card flags for one month (YYYY-MM)."""
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", month or ""):
+        raise HTTPException(400, "month must be YYYY-MM")
+    y, m = int(month[:4]), int(month[5:7])
+    cards = agent.mem.get("cards", {})
+    days = {}
+    for day in range(1, monthrange(y, m)[1] + 1):
+        d = f"{y}-{m:02d}-{day:02d}"
+        days[d] = {
+            "events": [e for e in agent.mem["events"] if e["date"] == d],
+            "tasks": [{"id": i, **t} for i, t in enumerate(agent.mem["tasks"])
+                      if t["date"] == d and not t.get("removed")],
+            "has_card": d in cards,
+        }
+    return {"month": month, "days": days}
 
 
 @app.get("/today")
