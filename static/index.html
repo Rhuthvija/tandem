@@ -80,10 +80,16 @@
   .send:disabled { opacity:.5; }
   .toast { position:fixed; top:20px; left:50%; transform:translate(-50%,-90px); background:var(--ink); color:#fff; padding:12px 18px; border-radius:14px; font-weight:600; font-size:14px; transition:transform .3s; z-index:30; }
   .toast.show { transform:translate(-50%,0); }
+  .toast-undo { background:none; border:none; font:inherit; font-weight:700; color:#fff; text-decoration:underline; cursor:pointer; padding:0 0 0 10px; }
 
   /* onboarding */
   .onboard { position:fixed; inset:0; background:var(--bg); z-index:20; display:flex; justify-content:center; overflow-y:auto; }
   .onboard[hidden] { display:none; }
+  .hello { position:fixed; inset:0; background:var(--bg); z-index:26; display:flex; justify-content:center; overflow-y:auto; }
+  .hello[hidden] { display:none; }
+  .hello-inner { width:100%; max-width:430px; padding:48px 26px 32px; display:flex; flex-direction:column; gap:16px; }
+  .hello-inner h1 { font-size:30px; }
+  .hello-q { font-size:16px; font-weight:700; }
   .ob { width:100%; max-width:430px; padding:48px 26px 32px; display:flex; flex-direction:column; gap:18px; }
   .dots { display:flex; gap:6px; }
   .dots span { width:28px; height:6px; border-radius:3px; background:#DCD6EC; }
@@ -124,7 +130,8 @@
   .sheet h2 { font-size:22px; }
   .sheet label { font-size:14px; font-weight:700; display:flex; flex-direction:column; gap:6px; }
   .sheet textarea { font:inherit; font-size:15px; padding:12px; border-radius:12px; border:1px solid #DCD6EC; min-height:70px; resize:vertical; }
-  .sheet input[type=text] { font:inherit; font-size:15px; padding:12px; border-radius:12px; border:1px solid #DCD6EC; background:#fff; outline-color:var(--brand); width:100%; }
+  .sheet input[type=text], .sheet input[type=time], .sheet input[type=number], .sheet input[type=date] { font:inherit; font-size:15px; padding:12px; border-radius:12px; border:1px solid #DCD6EC; background:#fff; outline-color:var(--brand); width:100%; }
+  .danger { font:inherit; font-size:15px; font-weight:700; padding:14px; border-radius:16px; border:1.5px solid #F0C4C0; background:#FDEEEC; color:var(--err); cursor:pointer; }
   .moods { display:flex; gap:8px; flex-wrap:wrap; }
   .moods button { font:inherit; font-size:14px; font-weight:600; padding:10px 12px; border-radius:12px; border:1.5px solid #DCD6EC; background:#fff; cursor:pointer; color:var(--ink); }
   .moods button.picked { border-color:var(--brand); background:var(--brand-soft); }
@@ -167,6 +174,48 @@
     .daycard img { transition:none; }
     .pdots span { animation:none; }
   }
+  /* goodnight */
+  .night { position:fixed; inset:0; background:#1E1B2E; z-index:27; display:flex; justify-content:center; overflow:hidden; cursor:pointer; }
+  .night[hidden] { display:none; }
+  .night-content { position:relative; z-index:1; width:100%; max-width:430px; padding:48px 26px 32px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .night-hill { position:absolute; left:0; right:0; bottom:0; }
+  .night-hill svg { display:block; width:100%; height:100%; }
+  .night-hill.back { height:46%; animation:hillUp .9s steps(9) both; }
+  .night-hill.mid { height:32%; animation:hillUp .9s steps(9) .15s both; }
+  .night-hill.front { height:20%; animation:hillUp .9s steps(9) .3s both; }
+  @keyframes hillUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+  .night-stars { position:absolute; inset:0; }
+  .night-stars span { position:absolute; background:#F4EDD8; transform:rotate(45deg); animation:twinkle 1.6s steps(2) infinite alternate; }
+  .night-stars span:nth-child(1) { left:8%; top:12%; width:7px; height:7px; animation-duration:1.4s; }
+  .night-stars span:nth-child(2) { left:22%; top:30%; width:5px; height:5px; animation-duration:1.9s; animation-delay:.3s; }
+  .night-stars span:nth-child(3) { left:38%; top:8%; width:8px; height:8px; animation-duration:1.2s; animation-delay:.6s; }
+  .night-stars span:nth-child(4) { left:56%; top:22%; width:6px; height:6px; animation-duration:2.1s; animation-delay:.1s; }
+  .night-stars span:nth-child(5) { left:72%; top:10%; width:7px; height:7px; animation-duration:1.6s; animation-delay:.8s; }
+  .night-stars span:nth-child(6) { left:86%; top:28%; width:5px; height:5px; animation-duration:1.3s; animation-delay:.5s; }
+  .night-stars span:nth-child(7) { left:47%; top:38%; width:6px; height:6px; animation-duration:2.3s; animation-delay:1s; }
+  @keyframes twinkle { from { opacity:1; } to { opacity:.25; } }
+  .night-stage { position:relative; }
+  #nightOtter { display:block; width:240px; max-width:70vw; animation:nightFloat 5s steps(14) infinite; }
+  @keyframes nightFloat {
+    0% { transform:rotate(-4deg) scale(1); }
+    50% { transform:rotate(3deg) scale(1.03); }
+    100% { transform:rotate(-4deg) scale(1); }
+  }
+  .night-zs span { position:absolute; font-family:'Bricolage Grotesque',sans-serif; font-weight:700; color:#F2EAD8; text-shadow:1px 1px 0 rgba(0,0,0,.35); opacity:0; animation:zFloat 3.6s steps(10) infinite; }
+  .night-zs span:nth-child(1) { right:6%; top:0; font-size:16px; animation-delay:0s; }
+  .night-zs span:nth-child(2) { right:-2%; top:-14px; font-size:22px; animation-delay:1.2s; }
+  .night-zs span:nth-child(3) { right:-12%; top:-34px; font-size:30px; animation-delay:2.4s; }
+  @keyframes zFloat {
+    0% { transform:translateY(0) rotate(-8deg); opacity:0; }
+    15% { opacity:1; }
+    100% { transform:translateY(-70px) rotate(6deg); opacity:0; }
+  }
+  .night-text { font-size:17px; font-weight:700; color:#F1EEFC; text-align:center; line-height:1.45; }
+  .night-close { font-size:13px; color:#B7AAE6; }
+  @media (prefers-reduced-motion: reduce) {
+    .night-hill, .night-stars span, #nightOtter, .night-zs span { animation:none; }
+    .night-zs span { opacity:0; }
+  }
   #hEnergyWrap { display:flex; flex-direction:column; gap:12px; }
   #hEnergyWrap[hidden] { display:none; }
   #hResult { display:flex; flex-direction:column; gap:12px; }
@@ -181,6 +230,8 @@
   @keyframes shimmer { 0% { background-position:100% 0; } 100% { background-position:-100% 0; } }
   .plan-tag { font-size:11px; font-weight:700; color:var(--brand); background:var(--brand-soft); padding:3px 8px; border-radius:8px; white-space:nowrap; }
   .note { font-size:13px; }
+  .qa-pending { font-size:13px; color:var(--muted); padding:8px 0; font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .task-note { font-size:12px; color:var(--muted); margin-left:8px; }
   @media (prefers-reduced-motion: reduce) {
     .item.planning { animation:none; background:var(--brand-soft); }
   }
@@ -191,6 +242,21 @@
 <!-- ONBOARDING -->
 <div class="onboard" id="onboard" hidden>
   <div class="ob" id="ob"></div>
+</div>
+
+<!-- MORNING HELLO -->
+<div class="hello" id="hello" hidden>
+  <div class="hello-inner">
+    <h1 id="helloTitle"></h1>
+    <div id="helloCard"></div>
+    <div class="hello-q">How are you feeling today?</div>
+    <div class="moods" id="helloEnergy">
+      <button type="button" data-energy="low">🪫 Low</button>
+      <button type="button" data-energy="okay">🙂 Okay</button>
+      <button type="button" data-energy="great">⚡ Great</button>
+    </div>
+    <button class="skip" id="helloSkip">Not now</button>
+  </div>
 </div>
 
 <!-- TODAY -->
@@ -225,6 +291,7 @@
   <section class="plan">
     <div class="plan-head"><h2>Today's plan</h2><span><button class="bell" id="bell" hidden>🔔 Remind me</button> <span class="status" id="status"></span></span></div>
     <div class="bar" id="barWrap"><div id="bar" style="width:0%"></div></div>
+    <div id="pending"></div>
     <div id="list"></div>
     <button class="wrap" id="wrapBtn" style="display:none">🌙 Wrap up my day</button>
   </section>
@@ -309,6 +376,20 @@
     </div>
   </div>
 </div>
+<div class="night" id="night" hidden>
+  <div class="night-stars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="night-hill back" aria-hidden="true"><svg viewBox="0 0 100 24" preserveAspectRatio="none"><polygon points="0,24 0,14 6,11 12,13 18,8 26,10 34,6 42,9 50,5 58,8 66,4 74,7 82,5 90,8 100,6 100,24" fill="#2B2550"/></svg></div>
+  <div class="night-hill mid" aria-hidden="true"><svg viewBox="0 0 100 24" preserveAspectRatio="none"><polygon points="0,24 0,16 8,13 15,15 24,10 32,12 40,9 48,11 57,8 65,10 73,7 82,9 90,6 100,9 100,24" fill="#3A3270"/></svg></div>
+  <div class="night-hill front" aria-hidden="true"><svg viewBox="0 0 100 24" preserveAspectRatio="none"><polygon points="0,24 0,18 7,15 14,17 22,14 30,16 38,12 47,15 55,11 64,14 72,12 81,14 90,11 100,13 100,24" fill="#4B428C"/></svg></div>
+  <div class="night-content">
+    <div class="night-stage">
+      <img id="nightOtter" src="static/mascot/otter_sleep.png" alt="Sleeping otter on the moon">
+      <div class="night-zs" aria-hidden="true"><span>z</span><span>z</span><span>Z</span></div>
+    </div>
+    <div class="night-text" id="nightText"></div>
+    <div class="night-close">Tap anywhere to close</div>
+  </div>
+</div>
 <div class="modal" id="checkin" hidden>
   <div class="cc" role="dialog" aria-labelledby="ciTitle">
     <div class="big">⏰</div>
@@ -353,6 +434,19 @@
     <button class="skip" id="hbCancel">Not now</button>
   </div>
 </div>
+<div class="modal" id="taskSheet" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="tsTitle">
+    <h2 id="tsTitle">Edit task</h2>
+    <label>Title<input type="text" id="tsTitleInput" autocomplete="off"></label>
+    <label>Start time<input type="time" id="tsTime"></label>
+    <label>Duration (minutes)<input type="number" id="tsDur" min="0" step="5" inputmode="numeric" placeholder="e.g. 45"></label>
+    <label>Date<input type="date" id="tsDate"></label>
+    <div class="error" id="tsErr"></div>
+    <button class="primary" id="tsSave">Save</button>
+    <button class="danger" id="tsDelete">Delete</button>
+    <button class="skip" id="tsCancel">Cancel</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -362,7 +456,29 @@ const cheers = ["Nice one! 🎉", "Done and dusted ✨", "Look at you go 🚀", 
 let profile = null, lastItems = [], reflectedToday = false, bedtimeShown = "";
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-function toast(text) { $("toast").textContent = text; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2400); }
+let toastTimer = null;
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+}
+function showUndoToast(item) {
+  const t = $("toast"); t.innerHTML = "";
+  t.append(document.createTextNode("Ticked ✓"));
+  const b = el("button", "toast-undo", "Undo"); b.type = "button";
+  b.onclick = async () => {
+    clearTimeout(toastTimer); t.classList.remove("show");
+    $("cc").hidden = true;
+    try {
+      await api(`/tasks/${item.id}/undo`, { method:"POST" });
+    } catch { toast(BRAIN_ERR); return; }
+    load();
+  };
+  t.append(b); t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 5000);
+}
 
 let _uidMem = null;
 function newId() {
@@ -388,6 +504,14 @@ function api(path, opts = {}) {
   const h = new Headers(opts.headers || {});
   h.set("X-User-Id", userId());
   return fetch(path, { ...opts, headers: h });
+}
+const BRAIN_ERR = "Tandem couldn't reach its brain right now, try again in a moment";
+async function readJson(res) {
+  try {
+    return await res.json();
+  } catch {
+    throw new Error(BRAIN_ERR);
+  }
 }
 
 /* ---------------- ONBOARDING ---------------- */
@@ -564,7 +688,7 @@ async function load() {
 
   lastItems = items; reflectedToday = data.reflected;
   const hhmm = now.toTimeString().slice(0,5);
-  const pending = items.filter(i => !i.done);
+  const pending = items.filter(i => !i.done && !i.planning);
   const next = pending.find(i => (i.time||"") >= hhmm) || pending[0];
   $("next").style.display = next ? "block" : "none";
   if (next) {
@@ -600,17 +724,28 @@ async function load() {
     list.append(card);
   }
   updateWrapVisibility(now);
+  const pendWrap = $("pending"); pendWrap.innerHTML = "";
+  (data.pending || []).forEach(p => {
+    pendWrap.append(el("div", "qa-pending", `Tandem is reading this… “${p.text}”`));
+  });
   items.forEach(it => {
     const row = el("label", "item" + (it.done ? " done" : ""));
     row.append(el("span","time", it.time || "--:--"));
     const box = el("input"); box.type = "checkbox"; box.checked = it.done;
     box.onchange = () => complete(it);
-    row.append(box, el("span","title", it.title));
+    const titleEl = el("span","title", it.title);
+    if (it.kind === "task") {
+      titleEl.style.cursor = "pointer";
+      titleEl.onclick = e => { e.preventDefault(); openTaskSheet(it); };
+    }
+    row.append(box, titleEl);
+    if (it.note) row.append(el("span","task-note", it.note));
     if (it.kind === "habit") row.append(el("span","tag","daily"));
     if (it.planning) { row.classList.add("planning"); row.append(el("span","plan-tag","✨ planning…")); }
     list.append(row);
   });
-  if (items.some(i => i.planning)) ensurePlanningPoll();
+  if ((data.pending || []).length || items.some(i => i.planning)) ensurePlanningPoll();
+  handleQuickAddError(data);
   maybeAutoHuddle(data);
 }
 
@@ -633,7 +768,10 @@ $("ccSkip").onclick = () => $("cc").hidden = true;
 async function complete(item) {
   const url = item.kind === "task" ? `/tasks/${item.id}/done` : `/habits/${item.id}/done`;
   await api(url, { method:"POST" });
-  if (!item.done) celebrate(item);
+  if (!item.done) {
+    if (item.kind === "task") showUndoToast(item);
+    celebrate(item);
+  }
   load();
 }
 
@@ -646,18 +784,29 @@ function planningEl(text) {
   return p;
 }
 
-let planTimer = null, planWasPending = false;
+let planTimer = null, planWasPending = false, lastQaErrorAt = null;
+function handleQuickAddError(data) {
+  const err = data.quick_add_error;
+  if (!err || err.at === lastQaErrorAt) return;
+  lastQaErrorAt = err.at;
+  if (!$("msg").value.trim()) $("msg").value = err.text || "";
+  $("reply").innerHTML = "";
+  $("reply").append(el("div", "note", "🤝 " + (err.message || "Couldn't plan that, tap send to retry")));
+  $("reply").classList.add("show");
+  $("msg").focus();
+}
 function ensurePlanningPoll() {
   planWasPending = true;
   if (planTimer) return;
   planTimer = setInterval(async () => {
     try {
       const data = await (await api("/today")).json();
-      const pending = [...data.tasks, ...data.habits].some(i => i.planning);
-      if (pending) return;
+      const busy = (data.pending || []).length > 0 ||
+        [...data.tasks, ...data.habits].some(i => i.planning);
+      if (busy) { await load(); return; }
       clearInterval(planTimer); planTimer = null;
       await load();
-      if (planWasPending && data.last_reply) {
+      if (planWasPending && !data.quick_add_error && data.last_reply) {
         $("reply").innerHTML = "";
         $("reply").append(el("div", "note", "🤝 " + data.last_reply));
         $("reply").classList.add("show");
@@ -890,7 +1039,9 @@ function revealCardArt(src) {
   img.src = src + (src.includes("?") ? "&v=" : "?v=") + Date.now();
 }
 
+let cardFresh = false, lastCard = null, nightTimer = null;
 function showCard(c, fresh) {
+  cardFresh = !!fresh; lastCard = c;
   if (artTimer) { clearInterval(artTimer); artTimer = null; }
   if (c.image) {
     revealCardArt(c.image);
@@ -922,7 +1073,25 @@ function showCard(c, fresh) {
   $("dcStreak").textContent = c.streak == null ? "" : c.streak > 1 ? `🔥 ${c.streak}-day reflection streak` : "🌱 Day 1 of your reflection streak";
   $("cardModal").hidden = false;
 }
-$("dcClose").onclick = () => { if (artTimer) { clearInterval(artTimer); artTimer = null; } $("cardModal").hidden = true; };
+$("dcClose").onclick = () => {
+  if (artTimer) { clearInterval(artTimer); artTimer = null; }
+  $("cardModal").hidden = true;
+  if (cardFresh) { cardFresh = false; openNight(); }
+};
+function openNight() {
+  const name = profile?.name || "friend";
+  $("nightText").textContent = `Sleep well, ${name}. You got ${lastCard?.done ?? 0} things done today 🌙`;
+  $("night").hidden = false;
+  clearTimeout(nightTimer);
+  nightTimer = setTimeout(closeNight, 8000);
+}
+function closeNight() {
+  clearTimeout(nightTimer);
+  $("night").hidden = true;
+  showTab("today");
+}
+$("night").onclick = () => closeNight();
+$("nightOtter").onerror = () => { $("nightOtter").style.display = "none"; };
 /* ---------------- CALENDAR ---------------- */
 let calY = null, calM = null, calData = null, selDate = null;
 const pad2 = n => String(n).padStart(2, "0");
@@ -1032,7 +1201,10 @@ async function openHistoricCard(ds) {
 let huddleAutoShown = false;
 
 function openHuddle() {
-  $("hTitle").textContent = `Morning, ${profile?.name || "friend"} ☀️ How's your energy today?`;
+  const name = profile?.name || "friend";
+  $("hTitle").textContent = new Date().toTimeString().slice(0, 5) >= "12:00"
+    ? `Let's plan the rest of your day, ${name}`
+    : `Morning, ${name} ☀️ How's your energy today?`;
   $("hEnergyWrap").hidden = false;
   $("hResult").hidden = true;
   document.querySelectorAll("#hEnergy button").forEach(b => b.classList.remove("picked"));
@@ -1040,27 +1212,77 @@ function openHuddle() {
 }
 $("hSkip").onclick = () => $("huddle").hidden = true;
 
-document.querySelectorAll("#hEnergy button").forEach(b => b.onclick = async () => {
-  document.querySelectorAll("#hEnergy button").forEach(x => x.classList.toggle("picked", x === b));
+async function submitHuddleEnergy(energy) {
   $("hEnergyWrap").hidden = true;
   const res = $("hResult"); res.hidden = false;
   $("hActions").style.display = "none";
   const reply = $("hReply"); reply.innerHTML = ""; reply.append(planningEl("Tandem is planning your day"));
   $("hPlan").innerHTML = "";
   try {
-    const r = await api("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy: b.dataset.energy }) });
-    const data = await r.json();
+    const r = await api("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy }) });
+    const data = await readJson(r);
     if (!r.ok) throw new Error(data.detail || "error");
     reply.textContent = "🤝 " + data.reply;
-    renderHuddlePlan(await (await api("/today")).json());
+    renderHuddlePlan(await readJson(await api("/today")));
     $("hActions").style.display = "";
     load();
   } catch (err) {
     res.hidden = true;
     $("hEnergyWrap").hidden = false;
-    toast("Couldn't plan your day: " + err.message);
+    toast(BRAIN_ERR);
   }
+}
+
+document.querySelectorAll("#hEnergy button").forEach(b => b.onclick = async () => {
+  document.querySelectorAll("#hEnergy button").forEach(x => x.classList.toggle("picked", x === b));
+  submitHuddleEnergy(b.dataset.energy);
 });
+
+/* ---------------- MORNING HELLO ---------------- */
+let _helloMem = null;
+function helloShownToday() {
+  try { return localStorage.getItem("tandem_hello_shown") === localTodayStr(); }
+  catch { return _helloMem === localTodayStr(); }
+}
+function localYesterdayStr() {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function renderHelloCard(c) {
+  const wrap = $("helloCard"); wrap.innerHTML = "";
+  const card = el("div", "daycard");
+  if (c.image) {
+    const img = document.createElement("img");
+    img.src = c.image; img.alt = "Yesterday's day card";
+    img.classList.add("ready");
+    card.append(img);
+  }
+  const body = el("div", "body");
+  body.append(el("div", "meta", "YESTERDAY"));
+  body.append(el("h2", null, c.title || "Yesterday"));
+  if (c.lesson) body.append(el("div", "lesson", "💡 " + c.lesson));
+  body.append(el("div", "week", `Yesterday you finished ${c.done ?? 0} of ${c.total ?? 0}`));
+  card.append(body);
+  wrap.append(card);
+}
+async function openHello() {
+  $("helloTitle").textContent = `Good morning, ${profile?.name || "friend"} ☀️`;
+  $("helloCard").innerHTML = "";
+  try { localStorage.setItem("tandem_hello_shown", localTodayStr()); }
+  catch { _helloMem = localTodayStr(); }
+  $("hello").hidden = false;
+  try {
+    const r = await api(`/cards/${localYesterdayStr()}`);
+    if (!r.ok) return;  // no card for yesterday: just ask
+    renderHelloCard(await r.json());
+  } catch { /* just ask */ }
+}
+document.querySelectorAll("#helloEnergy button").forEach(b => b.onclick = () => {
+  $("hello").hidden = true;
+  openHuddle();
+  submitHuddleEnergy(b.dataset.energy);
+});
+$("helloSkip").onclick = () => $("hello").hidden = true;
 
 function renderHuddlePlan(data) {
   const plan = $("hPlan"); plan.innerHTML = "";
@@ -1093,14 +1315,35 @@ $("hGood").onclick = () => { $("huddle").hidden = true; load(); };
 $("hChange").onclick = () => { $("huddle").hidden = true; $("msg").focus(); };
 
 function maybeAutoHuddle(data) {
-  if (huddleAutoShown || !$("huddle").hidden || data.huddled) return;
+  if (huddleAutoShown || !$("huddle").hidden || !$("hello").hidden || data.huddled) return;
   if (!$("checkin").hidden || !$("cc").hidden || !$("reflectModal").hidden || !$("cardModal").hidden) return;
   const wake = profile?.wake;
   if (!wake || !/^\d{1,2}:\d{2}$/.test(wake)) return;
-  if (new Date().toTimeString().slice(0, 5) < wake) return;
+  const hhmm = new Date().toTimeString().slice(0, 5);
+  if (hhmm < wake || hhmm >= "12:00") return;
   huddleAutoShown = true;
-  openHuddle();
+  if (!helloShownToday()) openHello();
+  else openHuddle();
 }
+
+let wakeShown = "";
+function checkWakeTime() {
+  if (!profile?.wake || !/^\d{1,2}:\d{2}$/.test(profile.wake)) return;
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const now = new Date();
+  const [h, m] = profile.wake.split(":").map(Number);
+  const wakeAt = new Date(now); wakeAt.setHours(h, m, 0, 0);
+  const minsAfter = (now - wakeAt) / 60000;
+  if (minsAfter < 0 || minsAfter > 15) return;
+  const key = now.toDateString();
+  if (wakeShown === key) return;
+  wakeShown = key;
+  try {
+    const n = new Notification("Tandem ☀️", { body: "Good morning! Yesterday's card is ready 🦦" });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch {}
+}
+setInterval(checkWakeTime, 60000);
 /* ---------------- HABIT SHEET ---------------- */
 const HB_FALLBACK = ["🚶 Take a 10-minute walk", "📖 Read 10 pages", "🧘 Meditate for 5 minutes",
   "💧 Drink a glass of water", "✍️ Journal one line", "📵 No phone for the first 30 minutes"];
@@ -1133,6 +1376,54 @@ function submitHabit() {
 $("hbAdd").onclick = submitHabit;
 $("hbInput").addEventListener("keydown", e => { if (e.key === "Enter") submitHabit(); });
 $("hbCancel").onclick = () => $("habitSheet").hidden = true;
+/* ---------------- TASK SHEET ---------------- */
+let sheetTask = null;
+
+function openTaskSheet(item) {
+  sheetTask = item;
+  $("tsTitleInput").value = item.title || "";
+  $("tsTime").value = item.time || "";
+  $("tsDur").value = item.duration ?? "";
+  $("tsDate").value = item.date || "";
+  $("tsErr").textContent = "";
+  $("taskSheet").hidden = false;
+}
+$("tsCancel").onclick = () => $("taskSheet").hidden = true;
+
+$("tsSave").onclick = async () => {
+  const title = $("tsTitleInput").value.trim();
+  if (!title) { $("tsErr").textContent = "Give it a title 🙂"; return; }
+  const durRaw = $("tsDur").value;
+  const dur = durRaw === "" ? null : Number(durRaw);
+  if (dur !== null && (!Number.isInteger(dur) || dur < 0)) {
+    $("tsErr").textContent = "Duration must be 0 or more minutes"; return;
+  }
+  try {
+    const r = await api(`/tasks/${sheetTask.id}`, { method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ title, time: $("tsTime").value || null,
+                             date: $("tsDate").value || null, duration: dur }) });
+    const data = await readJson(r);
+    if (!r.ok) throw new Error(data.detail || "error");
+    $("taskSheet").hidden = true;
+    load();
+  } catch (err) {
+    $("tsErr").textContent = err.message === BRAIN_ERR ? BRAIN_ERR : "Couldn't save: " + err.message;
+  }
+};
+
+$("tsDelete").onclick = async () => {
+  if (!confirm(`Delete "${sheetTask.title}"?`)) return;
+  try {
+    const r = await api(`/tasks/${sheetTask.id}`, { method:"DELETE" });
+    if (!r.ok) throw new Error((await readJson(r)).detail || "error");
+    $("taskSheet").hidden = true;
+    toast("Deleted 🗑️");
+    load();
+  } catch {
+    $("tsErr").textContent = BRAIN_ERR;
+  }
+};
 
 $("resetBtn").onclick = async () => {
   if (!confirm("Start fresh? This clears your plans.")) return;
@@ -1148,7 +1439,7 @@ $("resetBtn").onclick = async () => {
 (async () => {
   profile = (await (await api("/profile")).json()).profile;
   if (!profile) { $("onboard").hidden = false; renderStep(); }
-  else { await load(); checkBedtime(); checkIns(); }
+  else { await load(); checkBedtime(); checkIns(); checkWakeTime(); new Image().src = "static/mascot/otter_sleep.png"; }
   updateBell();
 })();
 </script>

@@ -100,35 +100,77 @@ def huddle(body: HuddleIn, user_id: str = Depends(current_user)):
 class QuickAddIn(BaseModel):
     text: str
 
-def _plan_quick_add(task_id, text, user_id):
-    """Background job: turn a quick-add placeholder into proper events/tasks."""
+QUICK_ADD_TIMEOUT = 45
+QUICK_ADD_FAIL_MSG = "Couldn't plan that, tap send to retry"
+
+def _remove_pending(pending_id):
+    pending = agent.mem.setdefault("quick_add_pending", [])
+    agent.mem["quick_add_pending"] = [p for p in pending if p.get("id") != pending_id]
+
+def _tidy_quick_add_tasks(start_len):
+    """Safety net for split tasks: short titles, never in the past today."""
+    now = datetime.now()
+    today = now.strftime("%Y-%m-%d")
+    hhmm = now.strftime("%H:%M")
+    for t in agent.mem["tasks"][start_len:]:
+        words = (t.get("title") or "").split()
+        if len(words) > 6:
+            t["title"] = " ".join(words[:6])
+        if t.get("date") == today and (t.get("time") or "") < hhmm:
+            t["time"] = hhmm
+
+def _plan_quick_add(pending_id, text, user_id, timeout=QUICK_ADD_TIMEOUT):
+    """Background job: split one message into several clean tasks."""
+    import contextvars
+    from concurrent.futures import ThreadPoolExecutor
     with agent.user_context(user_id):
+        start_len = len(agent.mem["tasks"])
+        start_events = len(agent.mem["events"])
+        start_habits = len(agent.mem["habits"])
+        ctx = contextvars.copy_context()
+
+        def _run():
+            return ctx.run(_chat_quick_add, text, user_id)
+
+        ex = ThreadPoolExecutor(max_workers=1, thread_name_prefix="quickadd")
         try:
-            history = trim_history(histories.get(user_id, []))
-            reply, histories[user_id] = agent.chat(
-                f"(Quick add, placeholder task id {task_id}) {text}. Turn this into proper "
-                "events/tasks: rename/re-time the placeholder with update_task/move_task, or "
-                "remove_task it if it's just an event. For a daily habit, remove_task the "
-                "placeholder and call add_habit instead. Then reply in one short line.", history)
+            try:
+                reply = ex.submit(_run).result(timeout=timeout)
+            finally:
+                ex.shutdown(wait=False, cancel_futures=True)
+            _tidy_quick_add_tasks(start_len)
+            _remove_pending(pending_id)
+            agent.mem["quick_add_error"] = None
+            agent.mem["last_reply"] = reply
+            agent.save_mem()
         except Exception as e:
-            print("Quick-add planning failed:", e)
-            reply = "Couldn't plan that one, it's on your list as-is."
-        tasks = agent.mem["tasks"]
-        if 0 <= task_id < len(tasks):
-            tasks[task_id].pop("planning", None)
-        agent.mem["last_reply"] = reply
-        agent.save_mem()
+            import traceback
+            print(f"Quick-add planning failed: {e}")
+            traceback.print_exc()
+            del agent.mem["tasks"][start_len:]
+            del agent.mem["events"][start_events:]
+            del agent.mem["habits"][start_habits:]
+            _remove_pending(pending_id)
+            agent.mem["quick_add_error"] = {"text": text, "message": QUICK_ADD_FAIL_MSG,
+                                            "at": datetime.now().isoformat(timespec="minutes")}
+            agent.mem["last_reply"] = QUICK_ADD_FAIL_MSG
+            agent.save_mem()
+
+def _chat_quick_add(text, user_id):
+    history = trim_history(histories.get(user_id, []))
+    reply, histories[user_id] = agent.chat(agent.quick_add_prompt(text), history)
+    return reply
 
 @app.post("/quick-add")
 def quick_add(body: QuickAddIn, background: BackgroundTasks, user_id: str = Depends(current_user)):
-    """Save the user's text as a placeholder instantly; plan it in the background."""
-    task = {"title": body.text, "date": datetime.now().strftime("%Y-%m-%d"),
-            "for_event": "To-do", "done": False, "planning": True}
-    agent.mem["tasks"].append(task)
-    task_id = len(agent.mem["tasks"]) - 1
+    """Save the user's text as a pending note instantly; plan it in the background."""
+    pending = {"id": str(uuid.uuid4()), "text": body.text,
+               "created_at": datetime.now().isoformat(timespec="minutes")}
+    agent.mem.setdefault("quick_add_pending", []).append(pending)
+    agent.mem["quick_add_error"] = None
     agent.save_mem()
-    background.add_task(_plan_quick_add, task_id, body.text, user_id)
-    return {"task": {"id": task_id, **task}}
+    background.add_task(_plan_quick_add, pending["id"], body.text, user_id)
+    return {"pending": pending}
 
 HABIT_SUGGESTIONS = [
     "🚶 Take a 10-minute walk",
@@ -281,6 +323,8 @@ def today(user_id: str = Depends(current_user)):
         "reflected": d in agent.mem.get("cards", {}),
         "huddled": agent.mem.get("last_huddle") == d,
         "last_reply": agent.mem.get("last_reply"),
+        "pending": agent.mem.get("quick_add_pending", []),
+        "quick_add_error": agent.mem.get("quick_add_error"),
     }
 
 @app.post("/tasks/{task_id}/done")
@@ -291,6 +335,14 @@ def toggle_done(task_id: int, user_id: str = Depends(current_user)):
     task["done"] = not task["done"]
     agent.save_mem()
     return task
+@app.post("/tasks/{task_id}/undo")
+def undo_task(task_id: int, user_id: str = Depends(current_user)):
+    """Undo toast action: set back to not done (idempotent, unlike toggle)."""
+    t = _task(task_id)
+    t["done"] = False
+    agent.save_mem()
+    return t
+
 @app.post("/habits/{habit_id}/done")
 def toggle_habit(habit_id: int, user_id: str = Depends(current_user)):
     if not 0 <= habit_id < len(agent.mem["habits"]):
@@ -308,6 +360,65 @@ def _task(task_id):
     if not 0 <= task_id < len(agent.mem["tasks"]):
         raise HTTPException(404, "Task not found")
     return agent.mem["tasks"][task_id]
+
+class TaskPatch(BaseModel):
+    title: str | None = None
+    time: str | None = None
+    date: str | None = None
+    duration: int | None = None
+
+def _valid_date(s):
+    try:
+        datetime.strptime(s, "%Y-%m-%d")
+        return True
+    except (ValueError, TypeError):
+        return False
+
+def _valid_time(s):
+    try:
+        datetime.strptime(s, "%H:%M")
+        return re.fullmatch(r"\d{2}:\d{2}", s or "") is not None
+    except (ValueError, TypeError):
+        return False
+
+@app.patch("/tasks/{task_id}")
+def patch_task(task_id: int, body: TaskPatch, user_id: str = Depends(current_user)):
+    """Edit sheet save: rename / re-time / set duration. Validates all fields first."""
+    t = _task(task_id)
+    if t.get("removed"):
+        raise HTTPException(404, "Task not found")
+    title = body.title.strip() if body.title is not None else None
+    if body.title is not None and not title:
+        raise HTTPException(400, "Title can't be empty")
+    date = body.date if body.date is not None else t["date"]
+    time = body.time if body.time is not None else t.get("time") or "12:00"
+    if body.date is not None or body.time is not None:
+        if not _valid_date(date):
+            raise HTTPException(400, "date must be YYYY-MM-DD")
+        if not _valid_time(time):
+            raise HTTPException(400, "time must be HH:MM")
+    if "duration" in body.model_fields_set and body.duration is not None and body.duration < 0:
+        raise HTTPException(400, "duration must be 0 or more minutes")
+    if title is not None:
+        agent.update_task(task_id, title)
+    if body.date is not None or body.time is not None:
+        agent.move_task(task_id, date, time)
+    if "duration" in body.model_fields_set:
+        if body.duration is None:
+            t.pop("duration", None)
+        else:
+            t["duration"] = body.duration
+    agent.save_mem()
+    return t
+
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int, user_id: str = Depends(current_user)):
+    """Edit sheet delete: explicit tap on one row, so it bypasses the agent's
+    last-copy guard in remove_task (that guard is for ambiguous chat cleanup)."""
+    t = _task(task_id)
+    t["removed"] = True
+    agent.save_mem()
+    return {"ok": True}
 
 @app.post("/tasks/{task_id}/start")
 def start_task(task_id: int, user_id: str = Depends(current_user)):
@@ -372,6 +483,7 @@ def onboarding(body: Onboard, user_id: str = Depends(current_user)):
     agent.mem["profile"] = {"name": body.name, "days": body.days, "wake": body.wake, "sleep": body.sleep,
                             "energy": body.energy, "per_day": body.per_day}
     agent.mem["routine"] = body.routine
+    agent.mem["last_huddle"] = datetime.now().strftime("%Y-%m-%d")
     agent.save_mem()
     return {"ok": True}
 

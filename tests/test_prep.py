@@ -33,14 +33,23 @@ class PrepTest(UserTestCase):
         self.assertEqual(schema["function"]["parameters"]["required"], ["task_id", "title"])
 
     def test_remove_task_marks_removed_ids_stable(self):
+        agent.mem["tasks"].append(_task("Old name"))  # second copy: removal allowed
         self.assertEqual(agent.remove_task(0), "🗑️ Removed Old name")
         self.assertTrue(agent.mem["tasks"][0]["removed"])
-        self.assertEqual(len(agent.mem["tasks"]), 2)
+        self.assertEqual(len(agent.mem["tasks"]), 3)
         self.assertEqual(agent.mem["tasks"][1]["title"], "Gone")
+        self.assertFalse(agent.mem["tasks"][2].get("removed", False))
         self.assertEqual(agent.remove_task(99), "No such task")
         self.assertIn("remove_task", agent.FUNCS)
         schema = next(t for t in agent.TOOLS if t["function"]["name"] == "remove_task")
         self.assertEqual(schema["function"]["parameters"]["required"], ["task_id"])
+
+    def test_remove_task_keeps_last_copy(self):
+        self.assertIn("nothing removed", agent.remove_task(0))  # only "Old name"
+        self.assertFalse(agent.mem["tasks"][0].get("removed", False))
+        agent.mem["tasks"].append(_task("old NAME"))  # case-insensitive copy
+        self.assertEqual(agent.remove_task(0), "🗑️ Removed Old name")
+        self.assertIn("nothing removed", agent.remove_task(2))  # last one stays
 
     def test_today_hides_removed(self):
         with TestClient(server.app) as client:
@@ -63,6 +72,14 @@ class PrepTest(UserTestCase):
                        "just plan it",
                        "share topics anytime",
                        "birthday"):
+            self.assertIn(phrase, prompt)
+
+    def test_system_prompt_duplicate_rules(self):
+        prompt = agent.system_prompt()
+        for phrase in ("only removes an extra copy",
+                       "keeps the last remaining",
+                       "re-check the remaining tasks",
+                       "today's non-removed tasks"):
             self.assertIn(phrase, prompt)
 
     def test_week_record_ignores_removed(self):

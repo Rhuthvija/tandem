@@ -34,7 +34,9 @@ class AuthTest(UserTestCase):
 
 class IsolationTest(UserTestCase):
     def test_memories_isolated(self):
-        agent.mem["tasks"] = [{"title": "Mine", "date": "2026-10-30", "time": "19:00",
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        agent.mem["tasks"] = [{"title": "Mine", "date": today, "time": "19:00",
                                "for_event": "To-do", "done": False}]
         with TC(server.app, headers=HDR2) as client:
             other = client.get("/today").json()
@@ -52,13 +54,12 @@ class IsolationTest(UserTestCase):
 
     def test_background_job_uses_explicit_user(self):
         mem2 = copy.deepcopy(agent.EMPTY)
-        mem2["tasks"] = [{"title": "x", "date": "2026-10-30", "for_event": "To-do",
-                          "done": False, "planning": True}]
+        mem2["quick_add_pending"] = [{"id": "p1", "text": "x"}]
         self._db[USER2] = mem2
         with patch.object(agent, "chat", return_value=("Done.", [])), \
              patch.object(agent, "save_mem"):
-            server._plan_quick_add(0, "x", USER2)
-        self.assertNotIn("planning", self._db[USER2]["tasks"][0])
+            server._plan_quick_add("p1", "x", USER2)
+        self.assertEqual(self._db[USER2]["quick_add_pending"], [])
         self.assertEqual(self._db[USER2]["last_reply"], "Done.")
         self.assertIsNone(self._db[USER]["last_reply"])
 

@@ -14,7 +14,7 @@ MODEL = "muse-spark-1.3"
 REASONING_EFFORT = "low"
 DATA_DIR = "data"
 DEFAULT_USER = "local"
-EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "cards": {}, "last_nudge": None, "last_huddle": None, "last_reply": None}
+EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "cards": {}, "last_nudge": None, "last_huddle": None, "last_reply": None, "quick_add_pending": [], "quick_add_error": None}
 
 # ---------- per-user memory ----------
 # Each request binds the current user's id + memory dict here; `agent.mem`
@@ -153,6 +153,14 @@ def _strip_planning(mem):
     for t in (mem or {}).get("tasks", []) or []:
         if t.pop("planning", None) is not None:
             found = True
+    pending = (mem or {}).get("quick_add_pending") or []
+    if pending:
+        last = pending[-1]
+        mem["quick_add_error"] = {"text": last.get("text", ""),
+                                  "message": "Couldn't plan that, tap send to retry",
+                                  "at": datetime.now().isoformat(timespec="minutes")}
+        mem["quick_add_pending"] = []
+        found = True
     return found
 
 def clear_stale_planning():
@@ -228,6 +236,13 @@ def remove_task(task_id):
     if not 0 <= task_id < len(mem["tasks"]):
         return "No such task"
     t = mem["tasks"][task_id]
+    if t.get("removed"):
+        return f"🗑️ Removed {t['title']}"
+    title = (t.get("title") or "").strip().lower()
+    copies = [x for x in mem["tasks"]
+              if not x.get("removed") and (x.get("title") or "").strip().lower() == title]
+    if len(copies) <= 1:
+        return f"Kept {t['title']} - the only one with that title, nothing removed"
     t["removed"] = True
     return f"🗑️ Removed {t['title']}"
 
@@ -255,6 +270,7 @@ TOOLS = [
        {"tasks": {"type": "array", "items": {"type": "object", "properties": {
            "title": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"},
            "time": {"type": "string", "description": "HH:MM 24h"}, "for_event": {"type": "string"},
+           "note": {"type": "string", "description": "Optional detail like duration or deadline, e.g. '2h, ends 23:00'"},
            "size": {"type": "string", "enum": ["big", "quick"], "description": "big = focus work, quick = under ~15 min"}},
            "required": ["title", "date", "time", "for_event"]}}},
        ["tasks"]),
@@ -265,7 +281,7 @@ TOOLS = [
     fn("update_task", "Rename an existing task (by its id), e.g. to turn a generic prep session into a topic-specific one.",
        {"task_id": {"type": "integer"}, "title": {"type": "string"}},
        ["task_id", "title"]),
-    fn("remove_task", "Remove a task (by its id) that is no longer needed, e.g. generic prep replaced by topic-specific sessions. Ids of other tasks stay the same.",
+    fn("remove_task", "Remove one extra copy of a task (by its id). Refuses when it is the last remaining task with that title. Ids of other tasks stay the same.",
        {"task_id": {"type": "integer"}},
        ["task_id"]),
     fn("add_habit", "Add a recurring daily habit (e.g. walking, reading).",
@@ -310,7 +326,27 @@ Rules:
 - Use their name sometimes. Reply in 1-3 short, warm sentences, like a friend, not an assistant.
 - When planning, quietly apply yesterday's lesson if it's relevant.
 - For deadlines, aim to finish a day early for breathing room and mention it in one line.
-- When the user adds a to-do, confirm where you put it. Only sometimes, when genuinely useful, add a one-line tip on how to tackle it."""
+- When the user adds a to-do, confirm where you put it. Only sometimes, when genuinely useful, add a one-line tip on how to tackle it.
+- If the user says a task is a duplicate: remove_task only removes an extra copy, it keeps the last remaining task with that title. Count the copies first; if there is only one, say so instead of removing anything.
+- After any remove_task, re-check the remaining tasks and only claim a task is still on the list when a task with that title is in today's non-removed tasks."""
+def quick_add_prompt(text):
+    """Prompt that turns one quick-add message into several clean tasks."""
+    now = datetime.now()
+    profile = mem.get("profile") or {}
+    bedtime = profile.get("sleep", "23:00")
+    return (f'(Quick add) "{text}". Separate this into one task per item mentioned.\n'
+            f"Now: {now:%Y-%m-%d %H:%M} (current time). Bedtime: {bedtime}.\n"
+            "- Each task title: max 6 words, short and clean. Put times, durations and "
+            "details in the time field or a note, NOT the title. E.g. 'OS: Concurrency & Sync' "
+            "with note '2h, ends 23:00', not 'study OS unit Concurrency for 2 hours'.\n"
+            "- Times: 'finish by 11' at night means 23:00 (11 PM), not 11:00. For 'for 2 hours "
+            "ending by 23:00', start 2h before the end (21:00) and note the duration.\n"
+            "- If bedtime is earlier than the finish-by time, end the task at bedtime instead "
+            "and mention it in your reply.\n"
+            "- Never schedule anything earlier than the current time today; use the next free slot.\n"
+            "- Habits ('every day', 'daily') use add_habit; dated one-offs use add_event; "
+            "small to-dos use add_tasks with for_event 'To-do'. Leave everything unticked.\n"
+            "- Call all tools in one turn, then reply in one short line.")
 def make_day_card(date, done, missed, went_well, got_in_way, mood):
     name = (mem.get("profile") or {}).get("name", "the user")
     prompt = f"""Write today's day card for {name}.

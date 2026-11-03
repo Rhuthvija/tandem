@@ -35,6 +35,14 @@ class OnboardingTest(UserTestCase):
             self.assertEqual(r.status_code, 200)
             self.assertEqual(client.get("/profile").json()["profile"]["days"], "other")
 
+    def test_onboarding_marks_day_huddled(self):
+        """No auto huddle on onboarding day, but the chip still works."""
+        from datetime import datetime
+        with patch.object(agent, "save_mem"), TestClient(server.app) as client:
+            self.assertEqual(client.post("/onboarding", json=self._payload()).status_code, 200)
+            self.assertTrue(client.get("/today").json()["huddled"])
+        self.assertEqual(agent.mem["last_huddle"], datetime.now().strftime("%Y-%m-%d"))
+
     def test_reset_clears_everything(self):
         agent.mem["profile"] = {"name": "X", "days": "studying"}
         agent.mem["tasks"] = [{"title": "t"}]
