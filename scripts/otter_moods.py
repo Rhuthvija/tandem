@@ -7,7 +7,9 @@ reference, then cuts the white background to transparent.
     python scripts/otter_moods.py proud oops # remake just these
 
 Where each one shows up:
-  yawn     morning intro: just woke up, stretching
+  bed_sleep  morning intro: fast asleep in its little paper bed
+  bed_yawn   morning intro: sitting up in bed, stretching and yawning
+  hello      morning intro: out of bed, waving "good morning!"
   proud    yesterday's card when you finished everything; completion pop-up
   hug      yesterday's card on a lighter day; "running low" mornings
   curious  "how are you feeling?" question
@@ -37,8 +39,15 @@ STYLE = ("Handmade paper cut-out illustration made of layered torn construction 
          "Plain pure white background, centered, full body visible. Pose and expression: ")
 
 MOODS = {
-    "yawn": "just woke up, sitting up and stretching both paws high above its head, mouth open in a "
-            "big cute yawn, eyes squeezed shut, sleepy and cosy.",
+    "bed_sleep": "fast asleep in a small cosy paper bed with a wooden paper headboard, a lilac paper "
+                 "blanket pulled up to its chin and a round white paper pillow, eyes closed as two gentle "
+                 "curved lines, peaceful little smile. Side-front view of the bed. The bed is the only object.",
+    "bed_yawn": "in the same small cosy paper bed with a wooden paper headboard, lilac paper blanket and "
+                "white paper pillow, now sitting up with the blanket slipping down to its lap, stretching "
+                "both paws high above its head, mouth wide open in a big cute yawn, eyes squeezed shut. "
+                "The bed is the only object.",
+    "hello": "standing up, waving one paw high above its head with an excited big open-mouth smile, eyes "
+             "bright and sparkly, leaning forward, like it is cheerfully saying good morning to a friend.",
     "proud": "jumping for joy with both paws thrown up in the air, eyes closed in two happy upside-down "
              "curves, huge open-mouth grin, tail flicked up, pure celebration.",
     "hug": "hugging a small red paper heart to its chest with both paws, soft gentle smile, eyes "

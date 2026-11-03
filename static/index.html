@@ -516,9 +516,9 @@
   <div class="m-grain" aria-hidden="true"></div>
   <div class="m-stage">
     <div class="m-otter" aria-hidden="true">
-      <div class="m-sleep-wrap"><img src="static/mascot/otter_sleep_small.png" alt=""></div>
+      <div class="m-sleep-wrap"><img data-otter="bed_sleep" alt=""></div>
       <div class="m-zs"><span>z</span><span>z</span><span>Z</span></div>
-      <div class="m-awake-wrap"><div class="m-yawn"><img data-otter="yawn" alt=""></div><div class="m-wave"><img data-otter="wave" alt=""></div></div>
+      <div class="m-awake-wrap"><div class="m-yawn"><img data-otter="bed_yawn" alt=""></div><div class="m-wave"><img data-otter="hello" alt=""></div></div>
     </div>
     <div class="m-note">
       <div class="m-date" id="mDate"></div>
@@ -1547,15 +1547,20 @@ const FORCE_MORNING = new URLSearchParams(location.search).has("morning");
 /* Otter expressions (Duolingo-style): one per moment. Made by scripts/otter_moods.py.
    Any that don't exist yet fall back to the waving otter, so nothing ever breaks. */
 const OTTER_FILES = { wave:"otter_awake.png", sleep:"otter_sleep_small.png" };
+const OTTER_FALLBACK = { bed_sleep:"sleep", bed_yawn:"yawn", yawn:"wave" };
 function otterSrc(name) { return "static/mascot/" + (OTTER_FILES[name] || `otter_${name}.png`); }
 function setOtter(img, name) {
-  img.onerror = () => { img.onerror = null; img.src = otterSrc("wave"); };
+  img.onerror = () => {
+    const next = OTTER_FALLBACK[name] || "wave";
+    if (next === name || name === "wave") { img.onerror = null; return; }
+    setOtter(img, next);
+  };
   img.src = otterSrc(name);
   img.dataset.otter = name;
 }
 function otterImg(name, cls) { const i = document.createElement("img"); if (cls) i.className = cls; i.alt = ""; setOtter(i, name); return i; }
 document.querySelectorAll("img[data-otter]").forEach(i => setOtter(i, i.dataset.otter));
-["yawn","proud","hug","curious","thumbs","oops"].forEach(n => { const i = new Image(); i.src = otterSrc(n); });
+["bed_sleep","bed_yawn","hello","proud","hug","curious","thumbs","oops"].forEach(n => { const i = new Image(); i.src = otterSrc(n); });
 function setFace(name) {
   const f = $("mFace");
   if (f.dataset.otter === name) return;
@@ -1593,7 +1598,7 @@ async function openHello() {
   btn.classList.remove("ready");
   scene.classList.remove("play", "sheet-on", "leaving");
   $("mSheetBody").innerHTML = "";
-  setOtter($("mFace"), "wave");
+  setOtter($("mFace"), "hello");
   scene.hidden = false;
   void scene.offsetWidth;            // restart every animation from frame one
   scene.classList.add("play");
