@@ -235,6 +235,202 @@
   @media (prefers-reduced-motion: reduce) {
     .item.planning { animation:none; background:var(--brand-soft); }
   }
+
+  /* ================= PAPER FEEL (global) ================= */
+  :root { --paper:#FFFDF8; --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .3 0 0 0 0 .45 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .app, .plan, .sheet, .cc, .daycard .body, .onboard, .empty-card { background-image:var(--grain); }
+  .plan { box-shadow:0 -1px 0 #E6E0F4, 0 -6px 0 -2px #EFEBF8, 0 -10px 24px rgba(30,27,46,.05); }
+  .next { box-shadow:0 2px 0 #3F318F, 0 7px 0 -2px #CFC6EF, 0 12px 22px rgba(84,67,184,.22); background-image:var(--grain); }
+  .sheet, .cc, .daycard { box-shadow:0 2px 0 #E2DCF2, 0 8px 0 -3px #F3F0FA, 0 22px 44px rgba(30,27,46,.22); }
+  /* sheets drop in like a piece of paper */
+  .modal:not([hidden]) > * { animation:paperIn .5s steps(6) both; }
+  @keyframes paperIn { 0% { transform:translateY(46px) rotate(-3deg); opacity:0; } 60% { transform:translateY(-4px) rotate(.6deg); opacity:1; } 100% { transform:none; opacity:1; } }
+  /* tab switch: page slides in */
+  .page-in { animation:pageIn .42s steps(5) both; }
+  @keyframes pageIn { from { transform:translateX(26px) rotate(.8deg); opacity:0; } to { transform:none; opacity:1; } }
+  /* list rows tumble in one by one */
+  .cascade .item { animation:rowIn .45s steps(5) both; animation-delay:calc(var(--i, 0) * 70ms); }
+  @keyframes rowIn { from { transform:translateY(14px) rotate(-1.5deg); opacity:0; } to { transform:none; opacity:1; } }
+  /* checkboxes: a paper square that gets a pen tick stamped on it */
+  .item input[type=checkbox] { appearance:none; -webkit-appearance:none; width:24px; height:24px; border-radius:7px; border:2px solid #B7AAE6; background:#fff; display:grid; place-items:center; flex-shrink:0; transition:border-color .2s; }
+  .item input[type=checkbox]:hover { border-color:var(--brand); }
+  .item input[type=checkbox]:checked { border-color:var(--brand); background:var(--brand) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.2 4.2L19 7' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/18px no-repeat; animation:stamp .32s steps(3); }
+  @keyframes stamp { 0% { transform:scale(1.45) rotate(-12deg); } 60% { transform:scale(.9) rotate(4deg); } 100% { transform:none; } }
+  .item input[type=checkbox]:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+
+  /* ================= PAPER BOAT LOADER ================= */
+  .boat-loader { position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; padding:4px 0 8px; }
+  .boat-sea { position:relative; width:100%; max-width:300px; height:132px; overflow:hidden; border-radius:18px; background:linear-gradient(#EAF5FF, #F6F1FF); }
+  .boat-sea .wave { position:absolute; left:0; width:200%; height:46px; animation:waveSlide 3.2s steps(16) infinite linear; }
+  .boat-sea .wave svg { display:block; width:100%; height:100%; }
+  .boat-sea .wave.w1 { bottom:22px; animation-duration:5.4s; filter:drop-shadow(0 -2px 0 rgba(84,67,184,.12)); }
+  .boat-sea .wave.w2 { bottom:8px; animation-duration:3.8s; animation-direction:reverse; filter:drop-shadow(0 -2px 0 rgba(84,67,184,.14)); }
+  .boat-sea .wave.w3 { bottom:-8px; animation-duration:2.8s; filter:drop-shadow(0 -2px 0 rgba(84,67,184,.16)); }
+  @keyframes waveSlide { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+  .boat { position:absolute; left:50%; bottom:30px; width:120px; margin-left:-60px; animation:boatBob 2.4s steps(8) infinite; transform-origin:50% 90%; }
+  .boat img { position:absolute; left:34px; bottom:26px; width:54px; animation:otterPeek 2.4s steps(8) infinite; }
+  .boat svg { position:relative; display:block; width:120px; filter:drop-shadow(0 3px 0 rgba(30,27,46,.12)); }
+  @keyframes boatBob { 0%,100% { transform:translateY(0) rotate(-5deg); } 50% { transform:translateY(-7px) rotate(5deg); } }
+  @keyframes otterPeek { 0%,100% { transform:translateY(0) rotate(-3deg); } 50% { transform:translateY(-3px) rotate(4deg); } }
+  .boat-cap { font-size:14px; font-weight:700; color:var(--brand); text-align:center; min-height:20px; }
+  .boat-cap.swap { animation:capSwap .4s steps(4); }
+  @keyframes capSwap { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  .boat-loader.small { flex-direction:row; gap:12px; padding:6px 0; }
+  .boat-loader.small .boat-sea { width:96px; height:56px; flex-shrink:0; border-radius:14px; }
+  .boat-loader.small .boat-sea .wave { height:22px; }
+  .boat-loader.small .boat-sea .wave.w1 { bottom:10px; } .boat-loader.small .boat-sea .wave.w2 { bottom:3px; } .boat-loader.small .boat-sea .wave.w3 { bottom:-5px; }
+  .boat-loader.small .boat { width:52px; margin-left:-26px; bottom:12px; }
+  .boat-loader.small .boat svg { width:52px; }
+  .boat-loader.small .boat img { width:24px; left:15px; bottom:11px; }
+  .boat-loader.small .boat-cap { text-align:left; font-size:13px; color:var(--muted); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .boat-loader.small .boat-cap b { color:var(--brand); display:block; }
+  .paint-ph { padding:18px; }
+  .paint-ph .boat-sea { max-width:260px; }
+
+  /* ================= MORNING SCENE ================= */
+  .morning { position:fixed; inset:0; z-index:40; overflow:hidden; font-family:'Manrope',system-ui,sans-serif; background:#2B2550; }
+  .morning[hidden] { display:none; }
+  .m-sky { position:absolute; inset:0; }
+  .m-sky.dawn { background:linear-gradient(180deg, #2B2550 0%, #5B4A93 38%, #E9A6A0 78%, #FBD3A6 100%); }
+  .m-sky.day { background:linear-gradient(180deg, #5FB6F0 0%, #9AD3F7 48%, #D9F0FF 82%, #FFF3DC 100%); opacity:0; }
+  .m-grain { position:absolute; inset:0; background-image:var(--grain); background-size:220px; opacity:.9; pointer-events:none; mix-blend-mode:multiply; z-index:6; }
+  .m-stars i { position:absolute; width:7px; height:7px; background:#FFF4D6; transform:rotate(45deg); }
+  .m-stars i:nth-child(1){left:10%;top:9%} .m-stars i:nth-child(2){left:28%;top:20%;width:5px;height:5px} .m-stars i:nth-child(3){left:47%;top:7%}
+  .m-stars i:nth-child(4){left:66%;top:16%;width:5px;height:5px} .m-stars i:nth-child(5){left:84%;top:8%} .m-stars i:nth-child(6){left:92%;top:24%;width:4px;height:4px}
+  .m-sun { position:absolute; left:auto; right:max(5vw, calc(50% - 380px)); top:5vh; width:min(24vh, 26vw, 180px); aspect-ratio:1; transform:translateY(120%); z-index:1; }
+  .m-sun .rays { position:absolute; inset:0; animation:spin 30s steps(60) infinite linear; }
+  .m-sun svg { position:absolute; inset:0; width:100%; height:100%; filter:drop-shadow(0 3px 0 rgba(200,110,20,.25)); }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .m-cloud { position:absolute; left:0; z-index:2; filter:drop-shadow(0 4px 0 rgba(60,80,140,.12)); }
+  .m-cloud svg { display:block; width:100%; }
+  .m-cloud.c1 { top:12vh; width:150px; animation:drift 70s steps(140) -36s infinite linear; }
+  .m-cloud.c2 { top:25vh; width:100px; animation:drift 54s steps(108) -42s infinite linear; opacity:.95; }
+  .m-cloud.c3 { top:5vh; width:118px; animation:drift 82s steps(160) -14s infinite linear; }
+  @keyframes drift { from { transform:translateX(-30vw); } to { transform:translateX(110vw); } }
+  .m-birds { position:absolute; top:17vh; left:0; width:56px; z-index:2; opacity:0; }
+  .m-birds svg { display:block; width:100%; }
+  .m-birds path { animation:flap .5s steps(2) infinite; transform-origin:center; transform-box:fill-box; }
+  .m-birds path:nth-child(2) { animation-delay:.25s; }
+  @keyframes flap { 50% { transform:scaleY(.4); } }
+  @keyframes birdsFly { 0% { opacity:1; transform:translate(-80px, 20px); } 100% { opacity:1; transform:translate(calc(100vw + 60px), -40px); } }
+  .m-hill { position:absolute; left:50%; width:max(104vw, 1000px); margin-left:calc(max(104vw, 1000px) / -2); bottom:0; z-index:3; transform:translateY(100%); }
+  .m-hill svg { display:block; width:100%; height:100%; }
+  .m-hill.h1 { height:40vh; filter:drop-shadow(0 -4px 0 rgba(43,37,80,.10)); }
+  .m-hill.h2 { height:29vh; filter:drop-shadow(0 -4px 0 rgba(30,60,40,.13)); z-index:4; }
+  .m-hill.h3 { height:17vh; filter:drop-shadow(0 -4px 0 rgba(30,60,40,.16)); z-index:5; }
+  .m-flowers { position:absolute; inset:auto 0 0 0; height:17vh; z-index:5; pointer-events:none; }
+  .m-flowers span { position:absolute; bottom:34%; width:12px; height:12px; border-radius:50%; background:#FFD27A; box-shadow:0 0 0 4px #FFFFFF, 0 2px 0 4px rgba(0,0,0,.08); transform:scale(0); }
+  .m-flowers span:nth-child(1){left:9%;bottom:44%} .m-flowers span:nth-child(2){left:22%;bottom:30%} .m-flowers span:nth-child(3){left:74%;bottom:40%} .m-flowers span:nth-child(4){left:88%;bottom:26%} .m-flowers span:nth-child(5){left:60%;bottom:18%}
+
+  .m-stage { position:absolute; inset:0; z-index:7; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:min(2.4vh, 18px); padding:3vh 22px 8vh; }
+  .m-otter { position:relative; width:min(34vh, 250px); aspect-ratio:1; transition:transform .7s steps(7), opacity .5s; }
+  .m-otter img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  .m-sleep-wrap, .m-awake-wrap { position:absolute; inset:0; }
+  .m-sleep-wrap { animation:sleepBob 3.6s steps(12) infinite; }
+  @keyframes sleepBob { 0%,100% { transform:translateY(0) rotate(-3deg); } 50% { transform:translateY(-6px) rotate(2deg) scale(1.02); } }
+  .m-awake-wrap { transform:scale(0); }
+  .m-awake-wrap img { filter:drop-shadow(0 6px 0 rgba(30,27,46,.14)); }
+  .m-zs span { position:absolute; font-family:'Bricolage Grotesque',sans-serif; font-weight:700; color:#FFF4D6; text-shadow:2px 2px 0 rgba(43,37,80,.35); opacity:0; animation:zFloat 2.4s steps(8) infinite; }
+  .m-zs span:nth-child(1) { right:8%; top:14%; font-size:18px; }
+  .m-zs span:nth-child(2) { right:2%; top:4%; font-size:24px; animation-delay:.8s; }
+  .m-zs span:nth-child(3) { right:-6%; top:-8%; font-size:32px; animation-delay:1.6s; }
+  .m-note { position:relative; background:var(--paper); background-image:var(--grain); border-radius:6px 18px 8px 16px; padding:14px 22px 16px; text-align:center; max-width:360px; box-shadow:0 2px 0 #EADFC8, 0 7px 0 -2px rgba(255,255,255,.7), 0 14px 26px rgba(30,27,46,.18); transform:rotate(-1.2deg); opacity:0; transition:opacity .4s, transform .5s steps(5); }
+  .m-note::before { content:""; position:absolute; top:-9px; left:50%; width:64px; height:18px; margin-left:-32px; background:rgba(255,214,140,.75); transform:rotate(-3deg); box-shadow:0 1px 0 rgba(0,0,0,.05); }
+  .m-date { font-size:12px; font-weight:700; letter-spacing:.08em; color:#8A7FA8; text-transform:uppercase; opacity:0; }
+  .m-hello { font-family:'Bricolage Grotesque',sans-serif; font-weight:700; font-size:clamp(26px, 5.4vh, 38px); line-height:1.1; margin:4px 0 0; color:var(--ink); }
+  .m-hello .w { display:inline-block; white-space:nowrap; }
+  .m-hello .l { display:inline-block; opacity:0; }
+  .m-sub { margin:6px 0 0; font-size:15px; color:var(--muted); opacity:0; }
+  .m-continue { font:inherit; font-size:16px; font-weight:800; padding:15px 30px; border-radius:18px; border:none; background:var(--brand); color:#fff; cursor:pointer; box-shadow:0 3px 0 #3B2E8C, 0 10px 20px rgba(43,37,80,.25); opacity:0; pointer-events:none; transition:transform .15s; }
+  .m-continue:hover { transform:translateY(-2px); }
+  .m-continue:active { transform:translateY(2px); box-shadow:0 1px 0 #3B2E8C; }
+  .m-continue.ready { pointer-events:auto; }
+  .m-continue:focus-visible { outline:3px solid #FFD27A; outline-offset:3px; }
+
+  /* timeline: everything below only runs while the scene is playing */
+  .morning.play .m-sky.day { animation:fadeIn 3.2s steps(10) .5s both; }
+  .morning.play .m-stars i { animation:fadeOut 2.2s steps(6) .6s both; }
+  .morning.play .m-sun { animation:sunRise 3.4s steps(12) .4s both; }
+  @keyframes sunRise { from { transform:translateY(120%) scale(.85); } to { transform:none; } }
+  .morning.play .m-hill.h1 { animation:hillRise .8s steps(6) 0s both; }
+  .morning.play .m-hill.h2 { animation:hillRise .8s steps(6) .15s both; }
+  .morning.play .m-hill.h3 { animation:hillRise .8s steps(6) .3s both; }
+  @keyframes hillRise { from { transform:translateY(100%); } to { transform:none; } }
+  .morning.play .m-flowers span { animation:pop .4s steps(4) both; }
+  .morning.play .m-flowers span:nth-child(1){animation-delay:4.0s} .morning.play .m-flowers span:nth-child(2){animation-delay:4.15s}
+  .morning.play .m-flowers span:nth-child(3){animation-delay:4.3s} .morning.play .m-flowers span:nth-child(4){animation-delay:4.45s} .morning.play .m-flowers span:nth-child(5){animation-delay:4.6s}
+  @keyframes pop { 0% { transform:scale(0) rotate(-40deg); } 70% { transform:scale(1.25) rotate(8deg); } 100% { transform:scale(1); } }
+  .morning.play .m-birds { animation:birdsFly 16s steps(80) 3.4s infinite linear; }
+  .morning.play .m-zs { animation:fadeOut .4s steps(3) 3.1s both; }
+  .morning.play .m-sleep-wrap { animation:sleepBob 3.6s steps(12) infinite, flipOut .3s steps(3) 3.4s forwards; }
+  @keyframes flipOut { to { transform:scaleX(0) translateY(-6px); } }
+  .morning.play .m-awake-wrap { animation:flipIn .5s steps(5) 3.7s both; }
+  @keyframes flipIn { 0% { transform:scaleX(0) scaleY(1); } 50% { transform:scaleX(1.08) scaleY(.88) translateY(8px); } 75% { transform:scaleX(.96) scaleY(1.06) translateY(-10px); } 100% { transform:none; } }
+  .morning.play .m-wave img { animation:wave 2.6s steps(8) 5.8s infinite; }
+  @keyframes wave { 0%,100% { transform:rotate(0) translateY(0); } 25% { transform:rotate(-4deg) translateY(-4px); } 50% { transform:rotate(0) translateY(0); } 75% { transform:rotate(3deg) translateY(-3px); } }
+  .morning.play .m-note { opacity:1; transition-delay:4.0s; }
+  .morning.play .m-date { animation:fadeIn .4s steps(3) 4.1s both; }
+  .morning.play .m-hello .l { animation:letterStamp .32s steps(3) both; animation-delay:calc(4.25s + var(--i) * 50ms); }
+  @keyframes letterStamp { 0% { opacity:0; transform:scale(1.8) rotate(-14deg); } 60% { opacity:1; transform:scale(.88) rotate(5deg); } 100% { opacity:1; transform:none; } }
+  .morning.play .m-sub { animation:fadeUp .5s steps(5) var(--subAt, 5.6s) both; }
+  .morning.play .m-continue { animation:fadeUp .5s steps(5) var(--btnAt, 6.2s) both; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+
+  /* the journal page that slides up over the scene */
+  .m-sheet { position:absolute; left:50%; bottom:0; z-index:9; width:min(100%, 460px); max-height:calc(100% - 96px); display:flex; flex-direction:column; background:var(--paper); background-image:var(--grain); border-radius:22px 22px 0 0; box-shadow:0 -3px 0 #EADFC8, 0 -18px 40px rgba(30,27,46,.25); transform:translate(-50%, 135%) rotate(2deg); transition:transform .7s steps(7); }
+  .m-sheet::before { content:""; position:absolute; top:-10px; left:0; right:0; height:12px; background:var(--paper); clip-path:polygon(0 100%,0 60%,4% 20%,9% 70%,14% 30%,20% 75%,26% 25%,32% 65%,38% 15%,44% 70%,50% 30%,56% 75%,62% 20%,68% 65%,74% 25%,80% 70%,86% 30%,92% 65%,97% 20%,100% 55%,100% 100%); }
+  .morning.sheet-on .m-sheet { transform:translate(-50%, 0) rotate(0); }
+  .morning.sheet-on .m-note, .morning.sheet-on .m-continue { opacity:0 !important; pointer-events:none; animation:none; transition:opacity .2s 0s !important; }
+  .morning.sheet-on .m-stage { justify-content:flex-start; padding-top:1.5vh; }
+  .morning.sheet-on .m-otter { opacity:0; transform:scale(.4); transform-origin:50% 0; }
+  .m-face { position:absolute; top:max(1vh, 6px); left:50%; width:min(15vh, 104px); margin-left:calc(min(15vh, 104px) / -2); aspect-ratio:1; object-fit:contain; z-index:8; opacity:0; filter:drop-shadow(0 4px 0 rgba(30,27,46,.14)); pointer-events:none; }
+  .morning.sheet-on .m-face { opacity:1; }
+  .m-face.pop { animation:facePop .5s steps(5); }
+  @keyframes facePop { 0% { transform:scale(.4) rotate(-10deg); } 60% { transform:scale(1.15) rotate(4deg); } 100% { transform:none; } }
+  .m-yawn, .m-wave { position:absolute; inset:0; }
+  .m-wave { opacity:0; }
+  .morning.play .m-yawn { animation:fadeOut .01s steps(1) 5.3s both; }
+  .morning.play .m-wave { animation:waveIn .45s steps(4) 5.3s both; }
+  @keyframes waveIn { 0% { opacity:1; transform:translateY(0) scale(.94); } 50% { opacity:1; transform:translateY(-16px) scale(1.04); } 100% { opacity:1; transform:none; } }
+  .cc .otter-big { width:132px; height:132px; object-fit:contain; margin:-8px auto -4px; display:block; animation:facePop .5s steps(5); }
+  .m-sheet-body { overflow-y:auto; padding:22px 22px 26px; display:flex; flex-direction:column; gap:14px; }
+  .m-sheet-body.turn-out { animation:turnOut .28s steps(3) both; }
+  .m-sheet-body.turn-in { animation:turnIn .42s steps(5) both; }
+  @keyframes turnOut { to { opacity:0; transform:translateX(-36px) rotate(-2deg); } }
+  @keyframes turnIn { from { opacity:0; transform:translateX(40px) rotate(2deg); } to { opacity:1; transform:none; } }
+  .m-kicker { font-size:12px; font-weight:800; letter-spacing:.08em; color:#8A7FA8; text-transform:uppercase; }
+  .m-sheet h2 { font-family:'Bricolage Grotesque',sans-serif; font-size:24px; line-height:1.15; margin:0; }
+  .m-sheet p { margin:0; color:var(--muted); font-size:15px; line-height:1.45; }
+  .m-polaroid { background:#fff; padding:10px 10px 12px; border-radius:6px; box-shadow:0 2px 0 #EADFC8, 0 12px 24px rgba(30,27,46,.14); transform:rotate(-1.6deg); animation:polaroidIn .6s steps(6) .15s both; position:relative; }
+  .m-polaroid::before { content:""; position:absolute; top:-8px; left:50%; width:70px; height:18px; margin-left:-35px; background:rgba(255,214,140,.75); transform:rotate(3deg); z-index:1; }
+  .m-polaroid img { display:block; width:100%; max-height:34vh; aspect-ratio:4/3; object-fit:cover; border-radius:3px; background:var(--brand-soft); }
+  .m-polaroid .cap { font-family:'Bricolage Grotesque',sans-serif; font-weight:700; font-size:19px; margin-top:10px; line-height:1.2; }
+  @keyframes polaroidIn { from { opacity:0; transform:translateY(30px) rotate(-8deg) scale(.92); } to { opacity:1; transform:rotate(-1.6deg); } }
+  .m-stat { display:flex; align-items:center; gap:12px; background:var(--brand-soft); border-radius:14px; padding:12px 14px; font-weight:700; font-size:15px; color:var(--brand); }
+  .m-stat .big { font-family:'Bricolage Grotesque',sans-serif; font-size:28px; line-height:1; }
+  .m-lesson { background:var(--warm-soft); color:#7A3A0E; border-radius:14px; padding:12px 14px; font-size:14px; line-height:1.45; }
+  .m-lesson b { display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:3px; color:#B5652A; }
+  .m-primary { font:inherit; font-size:16px; font-weight:800; padding:16px; border-radius:16px; border:none; background:var(--brand); color:#fff; cursor:pointer; box-shadow:0 3px 0 #3B2E8C; }
+  .m-primary:active { transform:translateY(2px); box-shadow:0 1px 0 #3B2E8C; }
+  .m-secondary { font:inherit; font-size:15px; font-weight:700; padding:14px; border-radius:16px; border:1.5px solid #DCD6EC; background:#fff; color:var(--ink); cursor:pointer; }
+  .m-moods { display:flex; flex-direction:column; gap:10px; }
+  .m-mood { display:flex; align-items:center; gap:14px; text-align:left; font:inherit; padding:14px 16px; border-radius:18px; border:1.5px solid #E2DCF2; background:#fff; cursor:pointer; color:var(--ink); box-shadow:0 2px 0 #E9E4F5; animation:rowIn .45s steps(5) both; animation-delay:calc(var(--i) * 90ms + .1s); transition:transform .15s, border-color .15s; }
+  .m-mood:hover { border-color:var(--brand); transform:translateY(-2px) rotate(-.5deg); }
+  .m-mood .e { font-size:30px; width:44px; text-align:center; }
+  .m-mood b { display:block; font-size:16px; }
+  .m-mood small { color:var(--muted); font-size:13px; font-weight:500; }
+  .m-mood.picked { border-color:var(--brand); background:var(--brand-soft); }
+  .m-reply { display:flex; gap:10px; align-items:flex-start; }
+  .m-reply img { width:42px; height:42px; object-fit:contain; flex-shrink:0; }
+  .m-reply div { background:var(--brand-soft); border-radius:4px 16px 16px 16px; padding:12px 14px; font-size:15px; line-height:1.45; color:var(--ink); }
+  .m-sheet .hrow { animation:rowIn .45s steps(5) both; animation-delay:calc(var(--i, 0) * 80ms + .2s); }
+  .morning.leaving .m-sheet { transform:translate(-50%, 135%) rotate(-2deg); }
+  .morning.leaving { animation:fadeOut .6s steps(6) .35s both; }
+  @media (prefers-reduced-motion: reduce) {
+    .morning *, .morning, .boat-loader *, .cascade .item, .modal > *, .page-in, .item input { animation-duration:.01s !important; animation-delay:0s !important; animation-iteration-count:1 !important; transition:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -245,18 +441,50 @@
 </div>
 
 <!-- MORNING HELLO -->
-<div class="hello" id="hello" hidden>
-  <div class="hello-inner">
-    <h1 id="helloTitle"></h1>
-    <div id="helloCard"></div>
-    <div class="hello-q">How are you feeling today?</div>
-    <div class="moods" id="helloEnergy">
-      <button type="button" data-energy="low">🪫 Low</button>
-      <button type="button" data-energy="okay">🙂 Okay</button>
-      <button type="button" data-energy="great">⚡ Great</button>
-    </div>
-    <button class="skip" id="helloSkip">Not now</button>
+<div class="morning" id="hello" hidden role="dialog" aria-label="Good morning">
+  <div class="m-sky dawn"></div>
+  <div class="m-sky day"></div>
+  <div class="m-stars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="m-sun" aria-hidden="true">
+    <div class="rays"><svg viewBox="-100 -100 200 200">
+      <g fill="#FFB238">
+        <polygon points="-10,-60 10,-60 0,-96"/><polygon points="-10,-60 10,-60 0,-96" transform="rotate(30)"/>
+        <polygon points="-10,-60 10,-60 0,-96" transform="rotate(60)"/><polygon points="-10,-60 10,-60 0,-96" transform="rotate(90)"/>
+        <polygon points="-10,-60 10,-60 0,-96" transform="rotate(120)"/><polygon points="-10,-60 10,-60 0,-96" transform="rotate(150)"/>
+        <polygon points="-10,-60 10,-60 0,-96" transform="rotate(180)"/><polygon points="-10,-60 10,-60 0,-96" transform="rotate(210)"/>
+        <polygon points="-10,-60 10,-60 0,-96" transform="rotate(240)"/><polygon points="-10,-60 10,-60 0,-96" transform="rotate(270)"/>
+        <polygon points="-10,-60 10,-60 0,-96" transform="rotate(300)"/><polygon points="-10,-60 10,-60 0,-96" transform="rotate(330)"/>
+      </g></svg></div>
+    <svg viewBox="-100 -100 200 200">
+      <path d="M0,-58 C30,-60 57,-34 58,-2 C60,30 34,57 2,58 C-30,60 -57,33 -58,1 C-60,-31 -32,-57 0,-58Z" fill="#FFC23D"/>
+      <path d="M2,-42 C24,-43 42,-23 42,0 C43,23 23,42 0,42 C-24,43 -42,22 -42,-1 C-43,-24 -22,-42 2,-42Z" fill="#FFDA78"/>
+      <path d="M-14,-24 C-6,-30 6,-30 12,-26" stroke="#FFF1C4" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </svg>
   </div>
+  <div class="m-cloud c1" aria-hidden="true"><svg viewBox="0 0 160 70"><path d="M14 62 C2 62 2 44 16 42 C14 26 34 18 46 28 C52 8 84 6 92 26 C102 14 126 18 126 36 C146 34 154 60 136 62 Z" fill="#FFFFFF"/><path d="M14 62 C30 56 120 56 136 62 Z" fill="#E8F1FB"/></svg></div>
+  <div class="m-cloud c2" aria-hidden="true"><svg viewBox="0 0 160 70"><path d="M14 62 C2 62 2 44 16 42 C14 26 34 18 46 28 C52 8 84 6 92 26 C102 14 126 18 126 36 C146 34 154 60 136 62 Z" fill="#FFFFFF"/><path d="M14 62 C30 56 120 56 136 62 Z" fill="#E8F1FB"/></svg></div>
+  <div class="m-cloud c3" aria-hidden="true"><svg viewBox="0 0 160 70"><path d="M14 62 C2 62 2 44 16 42 C14 26 34 18 46 28 C52 8 84 6 92 26 C102 14 126 18 126 36 C146 34 154 60 136 62 Z" fill="#FFFFFF"/><path d="M14 62 C30 56 120 56 136 62 Z" fill="#E8F1FB"/></svg></div>
+  <div class="m-birds" aria-hidden="true"><svg viewBox="0 0 60 30"><path d="M2 10 Q8 4 14 10 Q20 4 26 10" stroke="#3B3566" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M32 20 Q37 15 42 20 Q47 15 52 20" stroke="#3B3566" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg></div>
+  <div class="m-hill h1" aria-hidden="true"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polygon points="0,30 0,13 4,11.5 9,12.6 13,9.8 18,10.9 23,7.6 29,8.8 34,6.2 39,7.4 44,5.3 50,6.6 55,4.9 61,6.1 66,4.4 72,6.3 77,5.1 83,7.4 88,6 94,8.7 100,7.6 100,30" fill="#CBBDF0"/></svg></div>
+  <div class="m-hill h2" aria-hidden="true"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polygon points="0,30 0,11 5,9.4 10,10.6 16,7.4 22,8.6 27,6 33,7.7 38,5.4 44,7 50,9.4 56,7.6 62,9.8 67,7 73,8.3 79,5.6 85,7.6 90,6.1 95,8.4 100,7.1 100,30" fill="#A6D4A4"/></svg></div>
+  <div class="m-hill h3" aria-hidden="true"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polygon points="0,30 0,9 6,7.2 12,8.8 18,6.1 25,7.9 31,5.6 38,7.4 45,5 52,6.9 58,4.8 65,7.1 71,5.4 78,7.6 84,5.5 91,7.4 96,5.9 100,7 100,30" fill="#7FBE8C"/></svg></div>
+  <div class="m-flowers" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="m-grain" aria-hidden="true"></div>
+  <div class="m-stage">
+    <div class="m-otter" aria-hidden="true">
+      <div class="m-sleep-wrap"><img src="static/mascot/otter_sleep_small.png" alt=""></div>
+      <div class="m-zs"><span>z</span><span>z</span><span>Z</span></div>
+      <div class="m-awake-wrap"><div class="m-yawn"><img data-otter="yawn" alt=""></div><div class="m-wave"><img data-otter="wave" alt=""></div></div>
+    </div>
+    <div class="m-note">
+      <div class="m-date" id="mDate"></div>
+      <h1 class="m-hello" id="helloTitle"></h1>
+      <p class="m-sub" id="mSub"></p>
+    </div>
+    <button class="m-continue" id="mContinue" type="button">Continue ☀️</button>
+  </div>
+  <img class="m-face" id="mFace" data-otter="wave" alt="">
+  <div class="m-sheet" id="mSheet"><div class="m-sheet-body" id="mSheetBody"></div></div>
 </div>
 
 <!-- TODAY -->
@@ -327,7 +555,7 @@
 </div>
 <div class="modal" id="cc" hidden>
   <div class="cc" role="dialog" aria-labelledby="ccTitle">
-    <div class="big">🎉</div>
+    <img class="otter-big" id="ccOtter" data-otter="proud" alt="">
     <h2 id="ccTitle"></h2>
     <p id="ccSub"></p>
     <div id="ccAsk">
@@ -364,7 +592,7 @@
 <div class="modal" id="cardModal" hidden>
   <div class="daycard" role="dialog" aria-labelledby="dcTitle">
     <img id="dcImg" alt="Illustration of your day">
-    <div id="dcPaint" class="paint-ph" hidden>painting… 🎨</div>
+    <div id="dcPaint" class="paint-ph" hidden></div>
     <div class="body">
       <div class="meta" id="dcMeta"></div>
       <h2 id="dcTitle"></h2>
@@ -647,7 +875,7 @@ async function finish() {
 }
 
 /* ---------------- TODAY ---------------- */
-async function load() {
+async function load(cascade) {
   const data = await (await api("/today")).json();
   const now = new Date(), h = now.getHours();
   const name = profile?.name ? `, ${profile.name}` : "";
@@ -700,6 +928,7 @@ async function load() {
   }
 
   const list = $("list"); list.innerHTML = "";
+  list.classList.toggle("cascade", !!cascade);
   if (!items.length) {
     const card = el("div", "empty-card");
     const img = document.createElement("img");
@@ -724,12 +953,15 @@ async function load() {
     list.append(card);
   }
   updateWrapVisibility(now);
-  const pendWrap = $("pending"); pendWrap.innerHTML = "";
+  const pendWrap = $("pending");
+  const pendIds = (data.pending || []).map(p => p.id).join(",");
+  if (pendWrap.dataset.ids !== pendIds) { pendWrap.dataset.ids = pendIds; pendWrap.innerHTML = "";
   (data.pending || []).forEach(p => {
-    pendWrap.append(el("div", "qa-pending", `Tandem is reading this… “${p.text}”`));
-  });
-  items.forEach(it => {
+    pendWrap.append(boatLoader(`“${p.text}”`, true));
+  }); }
+  items.forEach((it, idx) => {
     const row = el("label", "item" + (it.done ? " done" : ""));
+    row.style.setProperty("--i", idx);
     row.append(el("span","time", it.time || "--:--"));
     const box = el("input"); box.type = "checkbox"; box.checked = it.done;
     box.onchange = () => complete(it);
@@ -755,6 +987,7 @@ function celebrate(item) {
   $("ccTitle").textContent = cheers[Math.floor(Math.random() * cheers.length)];
   $("ccSub").textContent = `"${item.title}" is done. +1 colour on today's card 🎨`;
   $("ccAsk").style.display = item.kind === "task" ? "block" : "none";
+  const co = $("ccOtter"); setOtter(co, "proud"); co.style.animation = "none"; void co.offsetWidth; co.style.animation = "";
   $("cc").hidden = false;
 }
 document.querySelectorAll("[data-took]").forEach(b => b.onclick = async () => {
@@ -902,7 +1135,7 @@ $("mic").onclick = async () => {
   } else {
     recording = false; $("mic").classList.remove("rec");
     const wav = stopRec();
-    showReply("Listening done, transcribing…");
+    $("reply").innerHTML = ""; $("reply").append(boatLoader("Hang on a sec", true, "Turning your voice into words…")); $("reply").classList.add("show");
     const fd = new FormData(); fd.append("audio", wav, "speech.wav");
     try {
       const res = await api("/transcribe", { method: "POST", body: fd });
@@ -952,7 +1185,9 @@ $("rCancel").onclick = () => $("reflectModal").hidden = true;
 
 $("rSave").onclick = async () => {
   if (!mood) { $("rErr").textContent = "Pick how you're feeling first"; return; }
-  $("rSave").disabled = true; $("rSave").textContent = "Painting your day card… 🎨";
+  $("rSave").disabled = true; $("rSave").textContent = "Writing your day card… ✍️";
+  const rBoat = boatLoader("Writing your day into a card…");
+  $("rSave").before(rBoat);
   try {
     const res = await api("/reflect", { method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ went_well: [...wins], mood, carry_over: $("rCarry")?.checked ?? false }) });
@@ -962,6 +1197,7 @@ $("rSave").onclick = async () => {
     showCard(card, true);
     load();
   } catch (err) { $("rErr").textContent = "Couldn't make the card: " + err.message; }
+  rBoat.remove();
   $("rSave").disabled = false; $("rSave").textContent = "Make my day card";
 };
 
@@ -1050,6 +1286,8 @@ function showCard(c, fresh) {
     $("dcImg").style.display = "none";
     $("dcImg").removeAttribute("src");
     $("dcPaint").hidden = !c.image_pending;
+    $("dcPaint").innerHTML = "";
+    if (c.image_pending) $("dcPaint").append(boatLoader("Painting your day card… 🎨"));
     if (c.image_pending) {
       artTimer = setInterval(async () => {
         try {
@@ -1083,7 +1321,6 @@ function openNight() {
   $("nightText").textContent = `Sleep well, ${name}. You got ${lastCard?.done ?? 0} things done today 🌙`;
   $("night").hidden = false;
   clearTimeout(nightTimer);
-  nightTimer = setTimeout(closeNight, 8000);
 }
 function closeNight() {
   clearTimeout(nightTimer);
@@ -1100,8 +1337,13 @@ function localTodayStr() { const d = new Date(); return `${d.getFullYear()}-${pa
 function showTab(which) {
   const cal = which === "cal";
   document.body.classList.toggle("cal", cal);
+  const was = $("calView").hidden ? "today" : "cal";
   $("todayView").hidden = cal;
   $("calView").hidden = !cal;
+  if (was !== which) {
+    const v = cal ? $("calView") : $("todayView");
+    v.classList.remove("page-in"); void v.offsetWidth; v.classList.add("page-in");
+  }
   $("tabToday").setAttribute("aria-selected", String(!cal));
   $("tabCal").setAttribute("aria-selected", String(cal));
   if (cal && !calData) {
@@ -1216,7 +1458,7 @@ async function submitHuddleEnergy(energy) {
   $("hEnergyWrap").hidden = true;
   const res = $("hResult"); res.hidden = false;
   $("hActions").style.display = "none";
-  const reply = $("hReply"); reply.innerHTML = ""; reply.append(planningEl("Tandem is planning your day"));
+  const reply = $("hReply"); reply.innerHTML = ""; reply.append(boatLoader(energy === "low" ? "Keeping today gentle…" : "Tandem is paddling through your plans…"));
   $("hPlan").innerHTML = "";
   try {
     const r = await api("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy }) });
@@ -1248,56 +1490,249 @@ function localYesterdayStr() {
   const d = new Date(); d.setDate(d.getDate() - 1);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
-function renderHelloCard(c) {
-  const wrap = $("helloCard"); wrap.innerHTML = "";
-  const card = el("div", "daycard");
-  if (c.image) {
-    const img = document.createElement("img");
-    img.src = c.image; img.alt = "Yesterday's day card";
-    img.classList.add("ready");
-    card.append(img);
-  }
-  const body = el("div", "body");
-  body.append(el("div", "meta", "YESTERDAY"));
-  body.append(el("h2", null, c.title || "Yesterday"));
-  if (c.lesson) body.append(el("div", "lesson", "💡 " + c.lesson));
-  body.append(el("div", "week", `Yesterday you finished ${c.done ?? 0} of ${c.total ?? 0}`));
-  card.append(body);
-  wrap.append(card);
+/* The morning is a little story, all in paper:
+   1. dawn: the otter sleeps on the moon, the sun rises, the sky turns blue,
+      the otter flips awake and waves, "Good morning, {name}!" is stamped in.
+      It stays (ambient clouds, birds, sun) until the user taps Continue.
+   2. a journal page slides up with yesterday's day card, score and lesson.
+   3. page turn: how are you feeling? (low / okay / great)
+   4. the paper boat sails while Tandem plans the day, then the plan appears.
+   Add ?morning=1 to the URL to replay it any time (for demos). */
+const FORCE_MORNING = new URLSearchParams(location.search).has("morning");
+
+/* Otter expressions (Duolingo-style): one per moment. Made by scripts/otter_moods.py.
+   Any that don't exist yet fall back to the waving otter, so nothing ever breaks. */
+const OTTER_FILES = { wave:"otter_awake.png", sleep:"otter_sleep_small.png" };
+function otterSrc(name) { return "static/mascot/" + (OTTER_FILES[name] || `otter_${name}.png`); }
+function setOtter(img, name) {
+  img.onerror = () => { img.onerror = null; img.src = otterSrc("wave"); };
+  img.src = otterSrc(name);
+  img.dataset.otter = name;
 }
+function otterImg(name, cls) { const i = document.createElement("img"); if (cls) i.className = cls; i.alt = ""; setOtter(i, name); return i; }
+document.querySelectorAll("img[data-otter]").forEach(i => setOtter(i, i.dataset.otter));
+["yawn","proud","hug","curious","thumbs","oops"].forEach(n => { const i = new Image(); i.src = otterSrc(n); });
+function setFace(name) {
+  const f = $("mFace");
+  if (f.dataset.otter === name) return;
+  setOtter(f, name);
+  f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop");
+}
+let yCardPromise = null;
+
+function stampLetters(target, text) {
+  target.innerHTML = "";
+  let i = 0;
+  text.split(" ").forEach((word, wi, arr) => {
+    const w = el("span", "w");
+    [...word].forEach(ch => { const l = el("span", "l", ch); l.style.setProperty("--i", i++); w.append(l); });
+    target.append(w);
+    if (wi < arr.length - 1) { target.append(document.createTextNode(" ")); i++; }
+  });
+  return i;
+}
+
 async function openHello() {
-  $("helloTitle").textContent = `Good morning, ${profile?.name || "friend"} ☀️`;
-  $("helloCard").innerHTML = "";
+  huddleAutoShown = true;
   try { localStorage.setItem("tandem_hello_shown", localTodayStr()); }
   catch { _helloMem = localTodayStr(); }
-  $("hello").hidden = false;
-  try {
-    const r = await api(`/cards/${localYesterdayStr()}`);
-    if (!r.ok) return;  // no card for yesterday: just ask
-    renderHelloCard(await r.json());
-  } catch { /* just ask */ }
+  const name = profile?.name || "friend";
+  const now = new Date();
+  $("mDate").textContent = now.toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long" });
+  const n = stampLetters($("helloTitle"), `Good morning, ${name}!`);
+  const lettersEnd = 4.25 + n * 0.05;
+  const scene = $("hello");
+  scene.style.setProperty("--subAt", (lettersEnd + 0.3).toFixed(2) + "s");
+  scene.style.setProperty("--btnAt", (lettersEnd + 0.9).toFixed(2) + "s");
+  $("mSub").textContent = "The sun's up, and so are you.";
+  const btn = $("mContinue");
+  btn.classList.remove("ready");
+  scene.classList.remove("play", "sheet-on", "leaving");
+  $("mSheetBody").innerHTML = "";
+  setOtter($("mFace"), "wave");
+  scene.hidden = false;
+  void scene.offsetWidth;            // restart every animation from frame one
+  scene.classList.add("play");
+  clearTimeout(openHello._t);
+  openHello._t = setTimeout(() => { btn.classList.add("ready"); btn.focus({ preventScroll:true }); }, (lettersEnd + 0.9) * 1000);
+  yCardPromise = api(`/cards/${localYesterdayStr()}`)
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  new Image().src = "static/mascot/otter_awake.png";
 }
-document.querySelectorAll("#helloEnergy button").forEach(b => b.onclick = () => {
-  $("hello").hidden = true;
-  openHuddle();
-  submitHuddleEnergy(b.dataset.energy);
-});
-$("helloSkip").onclick = () => $("hello").hidden = true;
+$("mContinue").onclick = () => {
+  if (!$("mContinue").classList.contains("ready")) return;
+  $("mContinue").classList.remove("ready");
+  morningYesterday();
+};
 
-function renderHuddlePlan(data) {
-  const plan = $("hPlan"); plan.innerHTML = "";
+/* swap the journal page's content with a page-turn */
+function turnPage(build) {
+  const body = $("mSheetBody");
+  const fill = () => {
+    body.classList.remove("turn-out");
+    body.innerHTML = ""; body.scrollTop = 0;
+    build(body);
+    body.classList.remove("turn-in"); void body.offsetWidth; body.classList.add("turn-in");
+  };
+  if (!body.childElementCount) { fill(); return; }
+  body.classList.remove("turn-in"); body.classList.add("turn-out");
+  setTimeout(fill, 280);
+}
+
+async function morningYesterday() {
+  const scene = $("hello");
+  const card = await (yCardPromise || Promise.resolve(null));
+  const allDone = card && card.total && (card.done ?? 0) >= card.total;
+  setFace(allDone ? "proud" : "hug");
+  scene.classList.add("sheet-on");
+  turnPage(body => {
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    body.append(el("div", "m-kicker", "Yesterday · " + y.toLocaleDateString("en-IN", { weekday:"short", day:"numeric", month:"short" })));
+    if (card) {
+      body.append(el("h2", null, "Here's how yesterday went"));
+      const pol = el("div", "m-polaroid");
+      if (card.image) {
+        const img = document.createElement("img");
+        img.alt = "Yesterday's day card"; img.src = card.image;
+        img.onerror = () => img.remove();
+        pol.append(img);
+      }
+      pol.append(el("div", "cap", card.title || "Yesterday"));
+      body.append(pol);
+      const done = card.done ?? 0, total = card.total ?? 0;
+      if (total) {
+        const st = el("div", "m-stat");
+        st.append(el("span", "big", `${done}/${total}`));
+        st.append(el("span", null, done >= total ? "You finished everything you planned. All of it. 🎉"
+                                 : done ? `You got ${done} thing${done > 1 ? "s" : ""} done. That counts. 💜`
+                                 : "A slow day. Today's a fresh page 🌱"));
+        body.append(st);
+      }
+      if (card.lesson) {
+        const ls = el("div", "m-lesson");
+        ls.append(el("b", null, "Carrying into today"), document.createTextNode(card.lesson));
+        body.append(ls);
+      }
+    } else {
+      body.append(el("h2", null, "A fresh page"));
+      body.append(el("p", null, "No day card from yesterday, and that's fine. Let's make today one worth remembering 🌱"));
+    }
+    const go = el("button", "m-primary", "Let's plan today →"); go.type = "button";
+    go.onclick = morningMood;
+    body.append(go);
+  });
+}
+
+function morningMood() {
+  const name = profile?.name || "friend";
+  setFace("curious");
+  turnPage(body => {
+    body.append(el("div", "m-kicker", "Quick check-in"));
+    body.append(el("h2", null, `How are you feeling this morning, ${name}?`));
+    body.append(el("p", null, "I'll shape today around it."));
+    const wrap = el("div", "m-moods");
+    [["🪫", "Running low", "go easy on me today", "low"],
+     ["🙂", "Pretty okay", "a normal, steady day", "okay"],
+     ["⚡", "Full of energy", "let's get after it", "high"]].forEach(([e, t, s, v], i) => {
+      const b = el("button", "m-mood"); b.type = "button"; b.style.setProperty("--i", i);
+      const txt = el("span"); txt.append(el("b", null, t), el("small", null, s));
+      b.append(el("span", "e", e), txt);
+      b.onclick = () => { b.classList.add("picked"); setTimeout(() => morningPlan(v), 220); };
+      wrap.append(b);
+    });
+    body.append(wrap);
+  });
+}
+
+async function morningPlan(energy) {
+  setFace(energy === "low" ? "hug" : "curious");
+  turnPage(body => {
+    body.append(el("div", "m-kicker", "Planning together"));
+    body.append(boatLoader(energy === "low" ? "Keeping today gentle…" : "Tandem is paddling through your plans…"));
+  });
+  try {
+    const r = await api("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy }) });
+    const data = await readJson(r);
+    if (!r.ok) throw new Error(data.detail || "error");
+    const today = await readJson(await api("/today"));
+    setFace("thumbs");
+    turnPage(body => {
+      body.append(el("div", "m-kicker", "Today's plan"));
+      const rep = el("div", "m-reply");
+      const av = otterImg("thumbs");
+      rep.append(av, el("div", null, data.reply));
+      body.append(rep);
+      const plan = el("div", "hplan"); body.append(plan);
+      renderHuddlePlan(today, plan);
+      const go = el("button", "m-primary", "Looks good, let's go ☀️"); go.type = "button";
+      go.onclick = () => closeMorning();
+      const ch = el("button", "m-secondary", "🗣️ Change something"); ch.type = "button";
+      ch.onclick = () => closeMorning(true);
+      body.append(go, ch);
+    });
+  } catch {
+    setFace("oops");
+    turnPage(body => {
+      body.append(el("h2", null, "The boat hit a little wave 🌊"));
+      body.append(el("p", null, "Tandem couldn't reach its brain just now. Try again in a moment."));
+      const again = el("button", "m-primary", "Try again"); again.type = "button";
+      again.onclick = () => morningPlan(energy);
+      const skip = el("button", "m-secondary", "Skip to my day"); skip.type = "button";
+      skip.onclick = () => closeMorning();
+      body.append(again, skip);
+    });
+  }
+}
+
+function closeMorning(focusChat) {
+  const scene = $("hello");
+  scene.classList.add("leaving");
+  setTimeout(async () => {
+    scene.hidden = true;
+    scene.classList.remove("play", "sheet-on", "leaving");
+    await load(true);
+    if (focusChat) $("msg").focus();
+  }, 950);
+}
+
+/* ---------------- PAPER BOAT LOADER ---------------- */
+const BOAT_LINES = ["Tandem is paddling through your plans…", "Folding your day into shape…", "Almost there…"];
+const WAVE_SVG = c => `<svg viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M0 20 V9 Q6 4 12 8 T25 7 T37 9 T50 6 T62 9 T75 7 T87 8 T100 9 V9 Q106 4 112 8 T125 7 T137 9 T150 6 T162 9 T175 7 T187 8 T200 9 V20 Z" fill="${c}"/></svg>`;
+const BOAT_SVG = `<svg viewBox="0 0 120 56"><polygon points="8,22 112,22 92,52 28,52" fill="#FFFFFF"/><polygon points="8,22 60,22 44,52 28,52" fill="#EEEAF8"/><polygon points="60,22 112,22 92,52 76,52" fill="#F6F3FC"/><polyline points="8,22 60,40 112,22" fill="none" stroke="#D9D2EE" stroke-width="1.6"/></svg>`;
+function boatLoader(first, small, title = "Folding this into your day…") {
+  const w = el("div", "boat-loader" + (small ? " small" : ""));
+  w.setAttribute("role", "status");
+  w.innerHTML = `<div class="boat-sea"><div class="wave w1">${WAVE_SVG("#E4DFF7")}</div><div class="boat"><img src="static/mascot/otter_awake.png" alt="">${BOAT_SVG}</div><div class="wave w2">${WAVE_SVG("#CFC6EF")}</div><div class="wave w3">${WAVE_SVG("#B7AAE6")}</div></div>`;
+  const cap = el("div", "boat-cap");
+  if (small) { cap.innerHTML = ""; cap.append(el("b", null, title), document.createTextNode(first)); }
+  else cap.textContent = first;
+  w.append(cap);
+  if (!small) {
+    const lines = [first, ...BOAT_LINES.filter(l => l !== first)];
+    let i = 0;
+    const t = setInterval(() => {
+      if (!w.isConnected) { clearInterval(t); return; }
+      i = (i + 1) % lines.length;
+      cap.textContent = lines[i]; cap.classList.remove("swap"); void cap.offsetWidth; cap.classList.add("swap");
+    }, 2400);
+  }
+  return w;
+}
+
+function renderHuddlePlan(data, target) {
+  const plan = target || $("hPlan"); plan.innerHTML = "";
   const items = [
     ...data.tasks.map(t => ({ ...t, kind:"task" })),
     ...data.habits.map(hb => ({ id:hb.id, time:hb.time, kind:"habit", title:`${hb.title} (${hb.minutes} min)` })),
   ].sort((a,b) => (a.time||"").localeCompare(b.time||""));
   if (!items.length) plan.append(el("div", "empty", "Nothing on the plan yet — a light day 🌱"));
-  items.forEach(it => {
-    const row = el("div", "hrow");
+  items.forEach((it, idx) => {
+    const row = el("div", "hrow"); row.style.setProperty("--i", idx);
     row.append(el("span", "time", it.time || "--:--"));
     row.append(el("span", "title", it.title));
     if (it.kind === "habit") row.append(el("span", "tag", "daily"));
     if (it.planning) row.append(el("span", "plan-tag", "✨ planning…"));
-    else {
+    else if (it.kind === "task" && !it.done) {
       const no = el("button", "notoday", "✕ not today"); no.type = "button";
       no.setAttribute("aria-label", `Move ${it.title} to tomorrow`);
       no.onclick = async () => {
@@ -1439,7 +1874,11 @@ $("resetBtn").onclick = async () => {
 (async () => {
   profile = (await (await api("/profile")).json()).profile;
   if (!profile) { $("onboard").hidden = false; renderStep(); }
-  else { await load(); checkBedtime(); checkIns(); checkWakeTime(); new Image().src = "static/mascot/otter_sleep.png"; }
+  else {
+    if (FORCE_MORNING) huddleAutoShown = true;
+    await load(true); checkBedtime(); checkIns(); checkWakeTime(); new Image().src = "static/mascot/otter_sleep.png";
+    if (FORCE_MORNING) openHello();
+  }
   updateBell();
 })();
 </script>
