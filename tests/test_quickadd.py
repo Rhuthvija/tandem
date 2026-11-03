@@ -3,13 +3,14 @@ background, voice transcription split out. Model calls are mocked."""
 import copy
 import io
 import json
+import os
 import tempfile
 import time
 import unittest
 from datetime import datetime
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
+from tests.util import TC as TestClient, USER, UserTestCase
 
 import agent
 import server
@@ -23,30 +24,23 @@ class FakeBG:
         self.jobs.append((func, args))
 
 
-class QuickAddTest(unittest.TestCase):
+class QuickAddTest(UserTestCase):
     def setUp(self):
-        self._mem = copy.deepcopy(agent.mem)
-        self._history = list(server.history)
+        super().setUp()
         agent.mem["tasks"] = []
-        server.history = []
-
-    def tearDown(self):
-        agent.mem.clear()
-        agent.mem.update(self._mem)
-        server.history = self._history
 
     def test_quick_add_returns_placeholder_instantly(self):
         bg = FakeBG()
         with patch.object(agent, "chat") as chat, patch.object(agent, "save_mem"):
             t0 = time.perf_counter()
-            out = server.quick_add(server.QuickAddIn(text="Buy milk"), bg)
+            out = server.quick_add(server.QuickAddIn(text="Buy milk"), bg, USER)
             dt = time.perf_counter() - t0
         chat.assert_not_called()
         self.assertLess(dt, 1.0)
         self.assertEqual(len(bg.jobs), 1)
         func, args = bg.jobs[0]
         self.assertIs(func, server._plan_quick_add)
-        self.assertEqual(args, (0, "Buy milk"))
+        self.assertEqual(args, (0, "Buy milk", USER))
         task = out["task"]
         self.assertEqual(task["title"], "Buy milk")
         self.assertEqual(task["date"], datetime.now().strftime("%Y-%m-%d"))
@@ -57,16 +51,16 @@ class QuickAddTest(unittest.TestCase):
     def test_plan_job_finishes_and_replies(self):
         agent.mem["tasks"] = [{"title": "Buy milk", "date": "2026-10-30",
                                "for_event": "To-do", "done": False, "planning": True}]
-        server.history = [{"role": "user", "content": str(i)} for i in range(15)]
+        server.histories[USER] = [{"role": "user", "content": str(i)} for i in range(15)]
         seen = {}
         with patch.object(agent, "chat",
                           side_effect=lambda t, h: (seen.update(text=t, n=len(h)),
                                                     ("All set.", h))[1]), \
              patch.object(agent, "save_mem"):
-            server._plan_quick_add(0, "Buy milk")
+            server._plan_quick_add(0, "Buy milk", USER)
         self.assertEqual(seen["n"], 10)
         for phrase in ("(Quick add, placeholder task id 0)", "Buy milk",
-                       "update_task/move_task", "remove_task", "one short line"):
+                       "update_task/move_task", "remove_task", "add_habit", "one short line"):
             self.assertIn(phrase, seen["text"])
         self.assertNotIn("planning", agent.mem["tasks"][0])
         self.assertEqual(agent.mem["last_reply"], "All set.")
@@ -76,7 +70,7 @@ class QuickAddTest(unittest.TestCase):
                                "for_event": "To-do", "done": False, "planning": True}]
         with patch.object(agent, "chat", side_effect=RuntimeError("down")), \
              patch.object(agent, "save_mem"):
-            server._plan_quick_add(0, "x")  # must not raise
+            server._plan_quick_add(0, "x", USER)  # must not raise
         self.assertNotIn("planning", agent.mem["tasks"][0])
         self.assertTrue(agent.mem["last_reply"])
 
@@ -128,15 +122,14 @@ class QuickAddTest(unittest.TestCase):
             self.assertEqual(v.status_code, 200)
             self.assertEqual(set(v.json()), {"heard", "reply"})
 
-    def test_load_mem_strips_stale_planning(self):
-        mem = dict(copy.deepcopy(agent.EMPTY))
-        mem["tasks"] = [{"title": "stuck", "planning": True, "done": False,
-                         "date": "2026-10-30", "for_event": "To-do"}]
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
-            json.dump(mem, f)
-        with patch.object(agent, "MEMORY", f.name):
-            loaded = agent.load_mem()
-        self.assertNotIn("planning", loaded["tasks"][0])
+    def test_startup_sweep_clears_stale_planning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, "u.json"), "w") as f:
+                json.dump({"tasks": [{"title": "stuck", "planning": True}]}, f)
+            with patch.object(agent, "DATA_DIR", tmp):
+                agent.clear_stale_planning()
+            data = json.load(open(os.path.join(tmp, "u.json")))
+        self.assertNotIn("planning", data["tasks"][0])
 
 
 if __name__ == "__main__":

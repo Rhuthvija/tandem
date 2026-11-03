@@ -9,7 +9,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
+from tests.util import TC as TestClient, USER, UserTestCase
 
 import agent
 import server
@@ -21,16 +21,7 @@ def _art_result():
     return SimpleNamespace(data=[SimpleNamespace(b64_json=FAKE_B64, url=None)])
 
 
-class DayCardTest(unittest.TestCase):
-    def setUp(self):
-        self._mem = copy.deepcopy(agent.mem)
-        self._history = list(server.history)
-        server.history = []
-
-    def tearDown(self):
-        agent.mem.clear()
-        agent.mem.update(self._mem)
-        server.history = self._history
+class DayCardTest(UserTestCase):
 
     def test_rereflect_replaces_card_and_image(self):
         d = datetime.now().strftime("%Y-%m-%d")
@@ -44,16 +35,18 @@ class DayCardTest(unittest.TestCase):
                                   "image": f"/static/cards/{d}.png"}}
         with patch.object(agent, "make_day_card",
                           return_value={"title": "New", "lesson": "l", "note": "n", "scene": "s"}), \
-             patch.object(agent, "paint_card", return_value=True) as paint, \
+             patch.object(agent, "paint_card", return_value=b"PNG") as paint, \
+             patch.object(agent, "save_card_image") as save_img, \
              patch.object(agent, "save_mem"), \
              TestClient(server.app) as client:
             r = client.post("/reflect", json={"mood": "okay", "carry_over": False})
         self.assertEqual(r.status_code, 200)
         paint.assert_called_once()
+        save_img.assert_called_once_with(USER, d, b"PNG")
         card = agent.mem["cards"][d]
         self.assertEqual(card["title"], "New")
         self.assertEqual((card["done"], card["total"]), (1, 2))
-        self.assertEqual(card["image"], f"/static/cards/{d}.png")
+        self.assertEqual(card["image"], f"/cards/{d}/image?user_id={USER}")
         self.assertFalse(card["image_pending"])
 
     def test_failed_art_clears_pending(self):
@@ -63,7 +56,7 @@ class DayCardTest(unittest.TestCase):
         agent.mem["habit_log"] = {}
         with patch.object(agent, "make_day_card",
                           return_value={"title": "t", "lesson": "l", "note": "n", "scene": "s"}), \
-             patch.object(agent, "paint_card", return_value=False), \
+             patch.object(agent, "paint_card", return_value=None), \
              patch.object(agent, "save_mem"), \
              TestClient(server.app) as client:
             client.post("/reflect", json={"mood": "okay", "carry_over": False})
@@ -72,10 +65,9 @@ class DayCardTest(unittest.TestCase):
         self.assertFalse(card["image_pending"])
 
     def test_paint_card_uses_mascot_edit(self):
-        out = os.path.join(tempfile.mkdtemp(), "card.png")
         with patch.object(agent.client.images, "edit", return_value=_art_result()) as edit, \
              patch.object(agent.client.images, "generate") as gen:
-            self.assertTrue(agent.paint_card("a quiet evening", out))
+            self.assertEqual(agent.paint_card("a quiet evening"), b"PNGDATA")
         gen.assert_not_called()
         self.assertEqual(edit.call_count, 1)
         _, kwargs = edit.call_args
@@ -84,25 +76,26 @@ class DayCardTest(unittest.TestCase):
         name, blob, mime = kwargs["image"]
         self.assertEqual((name, mime), ("otter_base.webp", "image/webp"))
         self.assertTrue(blob.startswith(b"RIFF"))
-        with open(out, "rb") as f:
-            self.assertEqual(f.read(), b"PNGDATA")
 
     def test_paint_card_falls_back_to_generate(self):
-        out = os.path.join(tempfile.mkdtemp(), "card.png")
         with patch.object(agent.client.images, "edit", side_effect=RuntimeError("nope")), \
              patch.object(agent.client.images, "generate", return_value=_art_result()) as gen:
-            self.assertTrue(agent.paint_card("a quiet evening", out))
+            self.assertEqual(agent.paint_card("a quiet evening"), b"PNGDATA")
         _, kwargs = gen.call_args
         for word in ("purple", "otter", "cream", "orange scarf"):
             self.assertIn(word, kwargs["prompt"])
-        with open(out, "rb") as f:
-            self.assertEqual(f.read(), b"PNGDATA")
+
+    def test_paint_card_downloads_url_result(self):
+        res = SimpleNamespace(data=[SimpleNamespace(b64_json=None, url="https://x/y.png")])
+        with patch.object(agent.client.images, "edit", return_value=res), \
+             patch("urllib.request.urlopen") as uo:
+            uo.return_value.read.return_value = b"JPEGDATA"
+            self.assertEqual(agent.paint_card("a quiet evening"), b"JPEGDATA")
 
     def test_paint_card_both_fail(self):
-        out = os.path.join(tempfile.mkdtemp(), "card.png")
         with patch.object(agent.client.images, "edit", side_effect=RuntimeError("nope")), \
              patch.object(agent.client.images, "generate", side_effect=RuntimeError("nope")):
-            self.assertFalse(agent.paint_card("a quiet evening", out))
+            self.assertIsNone(agent.paint_card("a quiet evening"))
 
 
 if __name__ == "__main__":

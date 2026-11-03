@@ -1,8 +1,7 @@
 .venv/
 .env
-.venv-1/memory.json
-__pycache__/
-static/cards/
+.venv-1/
 memory.json
 __pycache__/
 static/cards/
+data/

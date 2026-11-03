@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 load_dotenv()
 import os, json, base64, urllib.request
+import collections.abc
+from contextvars import ContextVar
+from contextlib import contextmanager
 from datetime import datetime
 from openai import OpenAI
 
@@ -9,20 +12,182 @@ MODEL = "muse-spark-1.3"
 # Meta API reasoning_effort: minimal/low/medium/high/xhigh/max (default medium).
 # "low" is the cheapest level that still plans and calls tools reliably.
 REASONING_EFFORT = "low"
-MEMORY = "memory.json"
+DATA_DIR = "data"
+DEFAULT_USER = "local"
 EMPTY = {"profile": None, "routine": "", "events": [], "tasks": [], "habits": [], "habit_log": {}, "cards": {}, "last_nudge": None, "last_huddle": None, "last_reply": None}
-def load_mem():
-    base = json.loads(json.dumps(EMPTY))
-    if os.path.exists(MEMORY):
-        base.update(json.load(open(MEMORY)))
-    for t in base["tasks"]:  # a restart means any planning job died; keep the item, drop the flag
-        t.pop("planning", None)
-    return base
 
-mem = load_mem()
+# ---------- per-user memory ----------
+# Each request binds the current user's id + memory dict here; `agent.mem`
+# resolves through __getattr__ so all existing tools keep working unchanged.
+_ctx_user = ContextVar("tandem_user", default=None)
+_ctx_mem = ContextVar("tandem_mem", default=None)
+
+def _fresh_mem():
+    return json.loads(json.dumps(EMPTY))
+
+def bind_user(user_id, mem):
+    _ctx_user.set(user_id)
+    _ctx_mem.set(mem)
+
+def unbind_user():
+    _ctx_user.set(None)
+    _ctx_mem.set(None)
+
+def current_user_id():
+    return _ctx_user.get()
+
+@contextmanager
+def user_context(user_id):
+    mem = load_user(user_id)
+    tu, tm = _ctx_user.set(user_id), _ctx_mem.set(mem)
+    try:
+        yield mem
+    finally:
+        _ctx_user.reset(tu)
+        _ctx_mem.reset(tm)
+
+class _MemProxy(collections.abc.MutableMapping):
+    """Routes every mem access to the calling context's bound user dict,
+    so the same `mem` global serves all users plus the local CLI."""
+
+    def _dict(self):
+        mu = _ctx_mem.get()
+        if mu is None:  # outside a request (CLI): use the local default user
+            mu = load_user(DEFAULT_USER)
+            bind_user(DEFAULT_USER, mu)
+        return mu
+
+    def __getitem__(self, key):
+        return self._dict()[key]
+
+    def __setitem__(self, key, value):
+        self._dict()[key] = value
+
+    def __delitem__(self, key):
+        del self._dict()[key]
+
+    def __iter__(self):
+        return iter(self._dict())
+
+    def __len__(self):
+        return len(self._dict())
+
+    def __repr__(self):
+        return repr(self._dict())
+
+    def __deepcopy__(self, memo):
+        return json.loads(json.dumps(self._dict()))
+
+mem = _MemProxy()
 
 def save_mem():
-    json.dump(mem, open(MEMORY, "w"), indent=2)
+    mu, uid = _ctx_mem.get(), _ctx_user.get()
+    if mu is None or uid is None:
+        return
+    save_user(uid, mu)
+
+# ---------- storage: Postgres when DATABASE_URL is set, else local files ----------
+def _db_url():
+    return os.environ.get("DATABASE_URL")
+
+def _pg():
+    import psycopg  # lazy: local runs don't need it installed
+    return psycopg.connect(os.environ["DATABASE_URL"])
+
+def load_user(user_id):
+    base = _fresh_mem()
+    url = _db_url()
+    if url:
+        with _pg() as conn, conn.cursor() as cur:
+            cur.execute("SELECT data::text FROM users WHERE id = %s", (user_id,))
+            row = cur.fetchone()
+            if row:
+                base.update(json.loads(row[0]))
+        return base
+    path = os.path.join(DATA_DIR, f"{user_id}.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            base.update(json.load(f))
+    return base
+
+def save_user(user_id, mem):
+    url = _db_url()
+    if url:
+        with _pg() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO users(id, data, updated_at) VALUES (%s, %s::jsonb, now()) "
+                        "ON CONFLICT(id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()",
+                        (user_id, json.dumps(mem)))
+    else:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(os.path.join(DATA_DIR, f"{user_id}.json"), "w") as f:
+            json.dump(mem, f, indent=2)
+
+def save_card_image(user_id, date, png):
+    url = _db_url()
+    if url:
+        with _pg() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO card_images(user_id, date, png) VALUES (%s, %s, %s) "
+                        "ON CONFLICT(user_id, date) DO UPDATE SET png = EXCLUDED.png",
+                        (user_id, date, png))
+    else:
+        d = os.path.join(DATA_DIR, "cards", user_id)
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, f"{date}.png"), "wb") as f:
+            f.write(png)
+
+def load_card_image(user_id, date):
+    url = _db_url()
+    if url:
+        with _pg() as conn, conn.cursor() as cur:
+            cur.execute("SELECT png FROM card_images WHERE user_id = %s AND date = %s", (user_id, date))
+            row = cur.fetchone()
+            return bytes(row[0]) if row and row[0] is not None else None
+    path = os.path.join(DATA_DIR, "cards", user_id, f"{date}.png")
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return f.read()
+    return None
+
+def _strip_planning(mem):
+    found = False
+    for t in (mem or {}).get("tasks", []) or []:
+        if t.pop("planning", None) is not None:
+            found = True
+    return found
+
+def clear_stale_planning():
+    """A restart means any planning job died: keep the items, drop the flags."""
+    url = _db_url()
+    if url:
+        with _pg() as conn, conn.cursor() as cur:
+            cur.execute("SELECT id, data::text FROM users")
+            for uid, raw in cur.fetchall():
+                mem = json.loads(raw or "{}")
+                if _strip_planning(mem):
+                    cur.execute("UPDATE users SET data = %s::jsonb, updated_at = now() WHERE id = %s",
+                                (json.dumps(mem), uid))
+    elif os.path.isdir(DATA_DIR):
+        for name in os.listdir(DATA_DIR):
+            if not name.endswith(".json"):
+                continue
+            path = os.path.join(DATA_DIR, name)
+            try:
+                with open(path) as f:
+                    mem = json.load(f)
+            except (OSError, ValueError):
+                continue
+            if _strip_planning(mem):
+                with open(path, "w") as f:
+                    json.dump(mem, f, indent=2)
+
+def init_db():
+    if _db_url():
+        with _pg() as conn, conn.cursor() as cur:
+            cur.execute("CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, data JSONB, updated_at TIMESTAMPTZ DEFAULT now())")
+            cur.execute("CREATE TABLE IF NOT EXISTS card_images(user_id TEXT, date TEXT, png BYTEA, PRIMARY KEY(user_id, date))")
+    else:
+        os.makedirs(os.path.join(DATA_DIR, "cards"), exist_ok=True)
+    clear_stale_planning()
 
 # ---------- tools Tandem can use ----------
 def set_routine(description):
@@ -169,15 +334,14 @@ MASCOT_PATH = "static/mascot/otter_base.png"
 OTTER = ("a small, chubby purple sea otter made of layered cut construction paper, "
          "with a cream paper belly and a tiny orange scarf")
 
-def _save_art(result, path):
+def _art_bytes(result):
     img = result.data[0]
     if getattr(img, "b64_json", None):
-        with open(path, "wb") as f:
-            f.write(base64.b64decode(img.b64_json))
-    else:
-        urllib.request.urlretrieve(img.url, path)
+        return base64.b64decode(img.b64_json)
+    return urllib.request.urlopen(img.url).read()
 
-def paint_card(scene, path):
+def paint_card(scene):
+    """Paint day-card art, returning PNG/JPEG bytes (or None). Storage is the caller's job."""
     base = ("Handmade paper cut-out illustration made of layered torn construction paper, visible paper grain, "
             "soft lilac and warm orange palette, cosy and calm, no text. Scene: " + scene)
     try:  # edit mode: keep our mascot otter in the scene
@@ -186,18 +350,16 @@ def paint_card(scene, path):
             mascot = ("otter_base.webp", f.read(), "image/webp")
         result = client.images.edit(model="muse-image-1.0", image=mascot,
                                     prompt=base + f" Feature the same {OTTER} from the reference image in the scene.")
-        _save_art(result, path)
-        return True
+        return _art_bytes(result)
     except Exception as e:
         print("Card art edit failed, falling back to generation:", e)
     try:
         result = client.images.generate(model="muse-image-1.0",
                                         prompt=base + f" Featuring {OTTER}.")
-        _save_art(result, path)
-        return True
+        return _art_bytes(result)
     except Exception as e:
         print("Card art failed:", e)
-        return False
+        return None
 def chat(user_text, history):
     today = datetime.now().strftime("%Y-%m-%d")
     first_today = mem["last_nudge"] != today

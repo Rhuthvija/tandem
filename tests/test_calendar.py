@@ -4,16 +4,15 @@ import copy
 import unittest
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
+from tests.util import TC as TestClient, UserTestCase
 
 import agent
 import server
 
 
-class CalendarTest(unittest.TestCase):
+class CalendarTest(UserTestCase):
     def setUp(self):
-        self._mem = copy.deepcopy(agent.mem)
-        self._history = list(server.history)
+        super().setUp()
         agent.mem["events"] = [
             {"title": "Maths exam", "date": "2026-02-14", "kind": "exam"},
             {"title": "Dentist", "date": "2026-02-14", "kind": "personal"},
@@ -28,12 +27,6 @@ class CalendarTest(unittest.TestCase):
              "for_event": "To-do", "done": False},
         ]
         agent.mem["cards"] = {"2026-02-14": {"title": "t", "date": "2026-02-14"}}
-        server.history = []
-
-    def tearDown(self):
-        agent.mem.clear()
-        agent.mem.update(self._mem)
-        server.history = self._history
 
     def test_month_days(self):
         with TestClient(server.app) as client:

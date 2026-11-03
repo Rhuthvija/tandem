@@ -5,7 +5,7 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
+from tests.util import TC as TestClient, UserTestCase
 
 import agent
 import server
@@ -16,20 +16,13 @@ def _task(title, done=False):
             "time": "19:00", "for_event": "Exam", "done": done}
 
 
-class PrepTest(unittest.TestCase):
+class PrepTest(UserTestCase):
     def setUp(self):
-        self._mem = copy.deepcopy(agent.mem)
-        self._history = list(server.history)
+        super().setUp()
         agent.mem["tasks"] = [_task("Old name"), _task("Gone")]
         agent.mem["tasks"][1]["removed"] = True
         agent.mem["habits"] = []
         agent.mem["habit_log"] = {}
-        server.history = []
-
-    def tearDown(self):
-        agent.mem.clear()
-        agent.mem.update(self._mem)
-        server.history = self._history
 
     def test_update_task_renames(self):
         self.assertEqual(agent.update_task(0, "Specific topic"), "✏️ Renamed to Specific topic")
@@ -80,7 +73,7 @@ class PrepTest(unittest.TestCase):
         today = datetime.now().strftime("%Y-%m-%d")
         card = {"title": "t", "lesson": "l", "note": "n", "scene": "s"}
         with patch.object(agent, "make_day_card", return_value=dict(card)), \
-             patch.object(agent, "paint_card", return_value=False), \
+             patch.object(agent, "paint_card", return_value=None), \
              patch.object(agent, "save_mem"), \
              TestClient(server.app) as client:
             r = client.post("/reflect", json={"mood": "okay", "carry_over": True})

@@ -19,6 +19,9 @@
   .ring { position:relative; width:64px; height:64px; flex-shrink:0; }
   .ring svg { transform:rotate(-90deg); }
   .ring span { position:absolute; inset:0; display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .head-right { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0; }
+  .resetlink { background:none; border:none; font:inherit; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; padding:4px 2px; }
+  .linklike { align-self:flex-start; background:none; border:none; font:inherit; font-size:14px; font-weight:700; color:var(--brand); cursor:pointer; padding:4px 0; }
   .section-label { font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.06em; padding:14px 22px 8px; }
   .chips { display:flex; gap:8px; overflow-x:auto; padding:0 22px; scrollbar-width:none; }
   .chip { white-space:nowrap; padding:8px 12px; border-radius:12px; background:var(--card); border:1px solid #DCD6EC; font-size:13px; font-weight:600; }
@@ -121,6 +124,7 @@
   .sheet h2 { font-size:22px; }
   .sheet label { font-size:14px; font-weight:700; display:flex; flex-direction:column; gap:6px; }
   .sheet textarea { font:inherit; font-size:15px; padding:12px; border-radius:12px; border:1px solid #DCD6EC; min-height:70px; resize:vertical; }
+  .sheet input[type=text] { font:inherit; font-size:15px; padding:12px; border-radius:12px; border:1px solid #DCD6EC; background:#fff; outline-color:var(--brand); width:100%; }
   .moods { display:flex; gap:8px; flex-wrap:wrap; }
   .moods button { font:inherit; font-size:14px; font-weight:600; padding:10px 12px; border-radius:12px; border:1.5px solid #DCD6EC; background:#fff; cursor:pointer; color:var(--ink); }
   .moods button.picked { border-color:var(--brand); background:var(--brand-soft); }
@@ -197,10 +201,13 @@
       <div class="date" id="date"></div>
       <h1 id="greeting">Hello!</h1>
     </div>
+    <div class="head-right">
     <div class="ring" title="Today's card colour">
       <svg width="64" height="64"><circle cx="32" cy="32" r="26" fill="none" stroke="#E4DFF7" stroke-width="7"/>
         <circle id="ringFill" cx="32" cy="32" r="26" fill="none" stroke="#5443B8" stroke-width="7" stroke-linecap="round" stroke-dasharray="163.4" stroke-dashoffset="163.4" style="transition:stroke-dashoffset .5s"/></svg>
       <span id="ringText"></span>
+    </div>
+    <button class="resetlink" id="resetBtn">⚙️ Start over</button>
     </div>
   </header>
 
@@ -335,6 +342,17 @@
     </div>
   </div>
 </div>
+<div class="modal" id="habitSheet" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="hbTitle">
+    <h2 id="hbTitle">🔁 New daily habit</h2>
+    <input type="text" id="hbInput" placeholder="e.g. read 10 pages" aria-label="Habit description" autocomplete="off">
+    <div style="font-size:14px;font-weight:700">Got nothing in mind? See suggestions 👇</div>
+    <div class="moods" id="hbSugg"></div>
+    <div class="error" id="hbErr"></div>
+    <button class="primary" id="hbAdd">Add habit</button>
+    <button class="skip" id="hbCancel">Not now</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -346,11 +364,45 @@ let profile = null, lastItems = [], reflectedToday = false, bedtimeShown = "";
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function toast(text) { $("toast").textContent = text; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2400); }
 
+let _uidMem = null;
+function newId() {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  } catch { /* fall through to Math.random */ }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+function userId() {
+  try {
+    let id = localStorage.getItem("tandem_uid");
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem("tandem_uid", id); }
+    return id;
+  } catch {
+    if (!_uidMem) _uidMem = newId();
+    return _uidMem;
+  }
+}
+function api(path, opts = {}) {
+  const h = new Headers(opts.headers || {});
+  h.set("X-User-Id", userId());
+  return fetch(path, { ...opts, headers: h });
+}
+
 /* ---------------- ONBOARDING ---------------- */
-const answers = { name:"", routine:"", wake:"", sleep:"", energy:"", per_day:3 };
+const answers = { name:"", days:"", busy:[], busyDetail:"", routine:"", wake:"", sleep:"", energy:"", per_day:3 };
 let step = 0;
 
-function dots(n) { const d = el("div","dots"); for (let i=0;i<6;i++){ const s=el("span"); if(i<=n) s.className="on"; d.append(s);} return d; }
+function dots(n) { const d = el("div","dots"); for (let i=0;i<7;i++){ const s=el("span"); if(i<=n) s.className="on"; d.append(s);} return d; }
+
+function buildRoutine(picks, details) {
+  const order = ["mornings", "afternoons", "evenings", "nights"];
+  const ps = order.filter(p => picks.includes(p));
+  let s = "Usually busy in the " + (ps.length > 1 ? ps.slice(0, -1).join(", ") + " and " + ps[ps.length - 1] : ps[0]) + ".";
+  if (details) s += " Details: " + details;
+  return s;
+}
 function backBtn() { const b = el("button","back","← Back"); b.type="button"; b.onclick = () => { step--; renderStep(); }; return b; }
 
 function choice(title, sub, value, key) {
@@ -382,46 +434,69 @@ function renderStep() {
     name.focus();
   }
   else if (step === 1) {
-    ob.append(backBtn(), dots(1), el("h1", null, `What's fixed in your week, ${answers.name}?`),
-      el("p", null, "Classes, work, gym, anything that doesn't move. Type it like you'd text a friend."));
-    const ta = el("textarea"); ta.value = answers.routine;
-    ta.placeholder = "college 8:30–4 on weekdays, japanese 5:20–8:30 pm, internship 9–12 at night…";
-    ta.setAttribute("aria-label","Your fixed weekly routine");
-    const err = el("div","error"); ta.oninput = () => err.textContent = "";
-    const next = el("button","primary","Next"); next.type="button";
-    next.onclick = () => {
-      if (ta.value.trim().length < 5) { err.textContent = "Add at least one thing, even just your work or class hours"; return; }
-      answers.routine = ta.value.trim(); step = 2; renderStep();
-    };
-    ob.append(ta, err, next); ta.focus();
+    const opts = el("div","options");
+    opts.append(choice("📚 Studying", "school, college, exams", "studying", "days"),
+                choice("💼 Working", "job, freelance, shifts", "working", "days"),
+                choice("🔀 A bit of both", "study and work", "both", "days"),
+                choice("🌱 Figuring it out", "between things for now", "other", "days"));
+    ob.append(backBtn(), dots(1), el("h1", null, "What fills most of your days?"),
+      el("p", null, "So I can tune suggestions to your life."), opts);
   }
   else if (step === 2) {
+    const picks = new Set(answers.busy);
+    const opts = el("div","options");
+    [["🌅 Mornings", "before lunch", "mornings"], ["☀️ Afternoons", "until evening", "afternoons"],
+     ["🌆 Evenings", "after work", "evenings"], ["🌙 Nights", "late hours", "nights"]].forEach(([title, sub, val]) => {
+      const b = el("button", "opt" + (picks.has(val) ? " picked" : "")); b.type = "button";
+      b.append(document.createTextNode(title), el("small", null, sub));
+      b.onclick = () => { picks.has(val) ? picks.delete(val) : picks.add(val); b.classList.toggle("picked"); err.textContent = ""; };
+      opts.append(b);
+    });
+    const addLink = el("button", "linklike", "+ Add details (optional)"); addLink.type = "button";
+    const det = el("input"); det.type = "text"; det.value = answers.busyDetail;
+    det.placeholder = "e.g. college 8:30–4 weekdays"; det.setAttribute("aria-label", "Routine details");
+    det.style.display = answers.busyDetail ? "" : "none";
+    if (answers.busyDetail) addLink.style.display = "none";
+    addLink.onclick = () => { addLink.style.display = "none"; det.style.display = ""; det.focus(); };
+    const err = el("div","error");
+    const next = el("button","primary","Next"); next.type="button";
+    next.onclick = () => {
+      if (!picks.size) { err.textContent = "Pick at least one — even a rough guess helps 🙂"; return; }
+      answers.busy = [...picks];
+      answers.busyDetail = det.value.trim();
+      answers.routine = buildRoutine(answers.busy, answers.busyDetail);
+      step = 3; renderStep();
+    };
+    ob.append(backBtn(), dots(2), el("h1", null, "When are you usually busy?"),
+      el("p", null, "Tap all that apply — I'll plan around them."), opts, addLink, det, err, next);
+  }
+  else if (step === 3) {
     const opts = el("div","options");
     opts.append(choice("🌅 Up before the sun", "the early bird", "06:00", "wake"),
                 choice("☕ Up around 7", "coffee, then the world", "07:00", "wake"),
                 choice("😴 Snooze-button champion", "8 or later, no shame", "08:30", "wake"));
-    ob.append(backBtn(), dots(2), el("h1", null, "Which one sounds like you?"),
+    ob.append(backBtn(), dots(3), el("h1", null, "Which one sounds like you?"),
       el("p", null, "So I never plan things while you're still in bed."), opts);
   }
-  else if (step === 3) {
+  else if (step === 4) {
     const opts = el("div","options");
     opts.append(choice("🌙 Before 10", "early to bed", "22:00", "sleep"),
                 choice("📺 Around 11", "one more episode", "23:00", "sleep"),
                 choice("🕛 Midnight-ish", "the classic", "00:00", "sleep"),
                 choice("🦉 Way past midnight", "night owl life", "01:30", "sleep"));
-    ob.append(backBtn(), dots(3), el("h1", null, "When does your day usually end?"),
+    ob.append(backBtn(), dots(4), el("h1", null, "When does your day usually end?"),
       el("p", null, "I'll check in to wrap up the day just before."), opts);
   }
-  else if (step === 4) {
+  else if (step === 5) {
     const opts = el("div","options");
     opts.append(choice("🌅 Morning", "fresh brain, early start", "morning", "energy"),
                 choice("☀️ Afternoon", "warmed up by lunch", "afternoon", "energy"),
                 choice("🌆 Evening", "come alive after work", "evening", "energy"),
                 choice("🌙 Night", "the late-night grinder", "night", "energy"));
-    ob.append(backBtn(), dots(4), el("h1", null, "When do you get the most done?"),
+    ob.append(backBtn(), dots(5), el("h1", null, "When do you get the most done?"),
       el("p", null, "I'll put your hardest stuff here."), opts);
   }
-  else if (step === 5) {
+  else if (step === 6) {
     const opts = el("div","options");
     const pick = (title, sub, n) => {
       const b = el("button","opt" + (answers.per_day === n ? " picked":"")); b.type="button";
@@ -430,7 +505,7 @@ function renderStep() {
       return b;
     };
     opts.append(pick("1 big thing", "keep it light", 1), pick("3 big things", "balanced", 3), pick("5 big things", "beast mode", 5));
-    ob.append(backBtn(), dots(5), el("h1", null, "How much can you take on in a day?"),
+    ob.append(backBtn(), dots(6), el("h1", null, "How much can you take on in a day?"),
       el("p", null, "Be honest. I'd rather you finish 3 than feel bad about 9."),
       el("p", null, "Big things = focus work. Quick to-dos like \"buy milk\" don't count, add as many as you want."), opts);
   }
@@ -438,8 +513,8 @@ function renderStep() {
 
 async function finish() {
   $("ob").innerHTML = ""; $("ob").append(el("h1", null, "Setting things up… ✨"));
-  await fetch("/onboarding", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(answers) });
-  profile = { name: answers.name, wake: answers.wake, sleep: answers.sleep };
+  await api("/onboarding", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(answers) });
+  profile = { name: answers.name, days: answers.days, wake: answers.wake, sleep: answers.sleep };
   $("onboard").hidden = true;
   await load();
   $("reply").textContent = `🤝 All set, ${answers.name}! What's coming up this week? Exams, deadlines, plans, anything.`;
@@ -449,7 +524,7 @@ async function finish() {
 
 /* ---------------- TODAY ---------------- */
 async function load() {
-  const data = await (await fetch("/today")).json();
+  const data = await (await api("/today")).json();
   const now = new Date(), h = now.getHours();
   const name = profile?.name ? `, ${profile.name}` : "";
   $("greeting").textContent = (h < 5 ? "Still up" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening") + name;
@@ -519,7 +594,7 @@ async function load() {
     const b2 = el("button", "sugg", midLabel); b2.type = "button";
     b2.onclick = () => { $("msg").value = midPrefill; $("msg").focus(); };
     const b3 = el("button", "sugg", "🔁 Start a daily habit"); b3.type = "button";
-    b3.onclick = () => { $("msg").value = "I want to start a daily habit of "; $("msg").focus(); };
+    b3.onclick = () => openHabitSheet();
     sugg.append(b1, b2, b3);
     card.append(sugg);
     list.append(card);
@@ -549,7 +624,7 @@ function celebrate(item) {
 }
 document.querySelectorAll("[data-took]").forEach(b => b.onclick = async () => {
   if (ccItem?.kind === "task") {
-    await fetch(`/tasks/${ccItem.id}/feedback`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ took: b.dataset.took }) });
+    await api(`/tasks/${ccItem.id}/feedback`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ took: b.dataset.took }) });
   }
   $("cc").hidden = true;
 });
@@ -557,7 +632,7 @@ $("ccSkip").onclick = () => $("cc").hidden = true;
 
 async function complete(item) {
   const url = item.kind === "task" ? `/tasks/${item.id}/done` : `/habits/${item.id}/done`;
-  await fetch(url, { method:"POST" });
+  await api(url, { method:"POST" });
   if (!item.done) celebrate(item);
   load();
 }
@@ -577,7 +652,7 @@ function ensurePlanningPoll() {
   if (planTimer) return;
   planTimer = setInterval(async () => {
     try {
-      const data = await (await fetch("/today")).json();
+      const data = await (await api("/today")).json();
       const pending = [...data.tasks, ...data.habits].some(i => i.planning);
       if (pending) return;
       clearInterval(planTimer); planTimer = null;
@@ -600,7 +675,7 @@ async function sendQuick(text, echo) {
     r.classList.add("show");
   }
   try {
-    await fetch("/quick-add", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ text }) });
+    await api("/quick-add", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ text }) });
     load();
   } catch { showReply("Couldn't reach Tandem. Is the server running?"); }
 }
@@ -681,7 +756,7 @@ $("mic").onclick = async () => {
     showReply("Listening done, transcribing…");
     const fd = new FormData(); fd.append("audio", wav, "speech.wav");
     try {
-      const res = await fetch("/transcribe", { method: "POST", body: fd });
+      const res = await api("/transcribe", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "error");
       if (!data.heard) { showReply("I didn't catch that. Try again?"); return; }
@@ -730,7 +805,7 @@ $("rSave").onclick = async () => {
   if (!mood) { $("rErr").textContent = "Pick how you're feeling first"; return; }
   $("rSave").disabled = true; $("rSave").textContent = "Painting your day card… 🎨";
   try {
-    const res = await fetch("/reflect", { method:"POST", headers:{ "Content-Type":"application/json" },
+    const res = await api("/reflect", { method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ went_well: [...wins], mood, carry_over: $("rCarry")?.checked ?? false }) });
     const card = await res.json();
     if (!res.ok) throw new Error(card.detail || "error");
@@ -784,21 +859,21 @@ setInterval(() => { if ($("checkin").hidden && $("cc").hidden && $("reflectModal
 
 $("ciStart").onclick = async () => {
   $("checkin").hidden = true;
-  await fetch(`/tasks/${ciTask.id}/start`, { method: "POST" });
+  await api(`/tasks/${ciTask.id}/start`, { method: "POST" });
   toast("Go get it! Timer's running ⏱");
   load();
 };
 $("ciPush").onclick = async () => {
   $("checkin").hidden = true;
   showReply("Moving things around…");
-  const res = await fetch(`/tasks/${ciTask.id}/push`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minutes: 30 }) });
+  const res = await api(`/tasks/${ciTask.id}/push`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minutes: 30 }) });
   const data = await res.json();
   showReply("🤝 " + (data.reply || "Pushed 30 minutes."));
   load();
 };
 $("ciSkip").onclick = async () => {
   $("checkin").hidden = true;
-  await fetch(`/tasks/${ciTask.id}/skip`, { method: "POST" });
+  await api(`/tasks/${ciTask.id}/skip`, { method: "POST" });
   toast("Moved to tomorrow, no stress 🌱");
   load();
 };
@@ -812,7 +887,7 @@ function revealCardArt(src) {
   img.onerror = () => { img.style.display = "none"; $("dcPaint").hidden = false; };
   img.style.display = "block";
   $("dcPaint").hidden = true;
-  img.src = src + "?v=" + Date.now();
+  img.src = src + (src.includes("?") ? "&v=" : "?v=") + Date.now();
 }
 
 function showCard(c, fresh) {
@@ -827,7 +902,7 @@ function showCard(c, fresh) {
     if (c.image_pending) {
       artTimer = setInterval(async () => {
         try {
-          const r = await fetch(`/cards/${c.date}`);
+          const r = await api(`/cards/${c.date}`);
           if (!r.ok) return;
           const fresh = await r.json();
           if (fresh.image) {
@@ -871,7 +946,7 @@ $("tabCal").onclick = () => showTab("cal");
 async function loadCalMonth() {
   const key = `${calY}-${pad2(calM)}`;
   $("calTitle").textContent = new Date(calY, calM - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-  calData = await (await fetch(`/calendar?month=${key}`)).json();
+  calData = await (await api(`/calendar?month=${key}`)).json();
   if (selDate && !selDate.startsWith(key)) { selDate = null; $("dayPanel").hidden = true; }
   renderCalGrid();
   if (selDate) renderDayPanel();
@@ -946,8 +1021,8 @@ function streakEndingAt(dateStr, have) {
 async function openHistoricCard(ds) {
   try {
     const [card, all] = await Promise.all([
-      (await fetch(`/cards/${ds}`)).json(),
-      (await fetch("/cards")).json(),
+      (await api(`/cards/${ds}`)).json(),
+      (await api("/cards")).json(),
     ]);
     card.streak = streakEndingAt(ds, new Set(all.map(c => c.date)));
     showCard(card);
@@ -973,11 +1048,11 @@ document.querySelectorAll("#hEnergy button").forEach(b => b.onclick = async () =
   const reply = $("hReply"); reply.innerHTML = ""; reply.append(planningEl("Tandem is planning your day"));
   $("hPlan").innerHTML = "";
   try {
-    const r = await fetch("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy: b.dataset.energy }) });
+    const r = await api("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy: b.dataset.energy }) });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || "error");
     reply.textContent = "🤝 " + data.reply;
-    renderHuddlePlan(await (await fetch("/today")).json());
+    renderHuddlePlan(await (await api("/today")).json());
     $("hActions").style.display = "";
     load();
   } catch (err) {
@@ -1004,7 +1079,7 @@ function renderHuddlePlan(data) {
       const no = el("button", "notoday", "✕ not today"); no.type = "button";
       no.setAttribute("aria-label", `Move ${it.title} to tomorrow`);
       no.onclick = async () => {
-        await fetch(`/tasks/${it.id}/skip`, { method: "POST" });
+        await api(`/tasks/${it.id}/skip`, { method: "POST" });
         row.remove();
         toast("Moved to tomorrow, no stress 🌱");
       };
@@ -1026,9 +1101,52 @@ function maybeAutoHuddle(data) {
   huddleAutoShown = true;
   openHuddle();
 }
+/* ---------------- HABIT SHEET ---------------- */
+const HB_FALLBACK = ["🚶 Take a 10-minute walk", "📖 Read 10 pages", "🧘 Meditate for 5 minutes",
+  "💧 Drink a glass of water", "✍️ Journal one line", "📵 No phone for the first 30 minutes"];
+
+function renderHabitSugg(list) {
+  const w = $("hbSugg"); w.innerHTML = "";
+  list.forEach(s => {
+    const b = el("button", null, s); b.type = "button";
+    b.onclick = () => { $("hbInput").value = s; $("hbInput").focus(); $("hbErr").textContent = ""; };
+    w.append(b);
+  });
+}
+
+function openHabitSheet() {
+  $("hbInput").value = ""; $("hbErr").textContent = "";
+  renderHabitSugg(HB_FALLBACK);
+  $("habitSheet").hidden = false;
+  $("hbInput").focus();
+  api("/habit-suggestions").then(r => r.json()).then(d => {
+    if (d.suggestions?.length) renderHabitSugg(d.suggestions);
+  }).catch(() => {});
+}
+
+function submitHabit() {
+  const text = $("hbInput").value.trim();
+  if (!text) { $("hbErr").textContent = "Describe your habit first 🙂"; return; }
+  $("habitSheet").hidden = true;
+  sendQuick(`I want to start a daily habit of ${text}`);
+}
+$("hbAdd").onclick = submitHabit;
+$("hbInput").addEventListener("keydown", e => { if (e.key === "Enter") submitHabit(); });
+$("hbCancel").onclick = () => $("habitSheet").hidden = true;
+
+$("resetBtn").onclick = async () => {
+  if (!confirm("Start fresh? This clears your plans.")) return;
+  await api("/reset", { method: "POST" });
+  profile = null; step = 0; lastItems = []; bedtimeShown = "";
+  huddleAutoShown = false; calData = null; selDate = null;
+  Object.assign(answers, { name:"", days:"", busy:[], busyDetail:"", routine:"", wake:"", sleep:"", energy:"", per_day:3 });
+  showTab("today");
+  $("onboard").hidden = false; renderStep();
+  load();
+};
 /* ---------------- START ---------------- */
 (async () => {
-  profile = (await (await fetch("/profile")).json()).profile;
+  profile = (await (await api("/profile")).json()).profile;
   if (!profile) { $("onboard").hidden = false; renderStep(); }
   else { await load(); checkBedtime(); checkIns(); }
   updateBell();
