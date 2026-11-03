@@ -1640,12 +1640,6 @@ async function openHello() {
   clearTimeout(openHello._idle);
   const waveImg = scene.querySelector(".m-wave img");
   setOtter(waveImg, "hello");
-  // "good morning!" plays once, then the otter gets fired up with its flashcards
-  openHello._idle = setTimeout(() => {
-    if (scene.hidden) return;
-    const box = scene.querySelector(".m-wave");
-    setOtter(waveImg, "ready"); box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop");
-  }, 8200);
   clearTimeout(openHello._t);
   openHello._t = setTimeout(() => { btn.classList.add("ready"); btn.focus({ preventScroll:true }); }, (lettersEnd + 0.9) * 1000);
   yCardPromise = api(`/cards/${localYesterdayStr()}`)
@@ -1655,7 +1649,11 @@ async function openHello() {
 $("mContinue").onclick = () => {
   if (!$("mContinue").classList.contains("ready")) return;
   $("mContinue").classList.remove("ready");
-  morningYesterday();
+  // yay! the otter jumps for joy, then the journal page slides up
+  const scene = $("hello"), box = scene.querySelector(".m-wave");
+  setOtter(box.querySelector("img"), "proud");
+  box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop");
+  setTimeout(morningYesterday, 750);
 };
 
 /* swap the journal page's content with a page-turn */
