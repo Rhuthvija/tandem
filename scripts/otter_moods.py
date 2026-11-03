@@ -6,6 +6,8 @@ reference, then cuts the white background to transparent.
     python scripts/otter_moods.py            # make all of them (~$0.06)
     python scripts/otter_moods.py proud oops # remake just these
 
+Scene props (sun, cloud, cloud2, boat) are painted too: python scripts/otter_moods.py sun cloud cloud2 boat
+
 Where each one shows up:
   bed_sleep  morning intro: fast asleep in its little paper bed
   bed_yawn   morning intro: sitting up in bed, stretching and yawning
@@ -88,7 +90,42 @@ def cut_white_to_transparent(path, tolerance=232):
     rgba.save(path, optimize=True)
 
 
+# Scene props (no otter): painted from scratch in the same torn-paper style.
+PROP_STYLE = ("Handmade paper cut-out craft made of layered torn construction paper, visible paper grain and "
+              "fibres, crinkled paper texture, soft drop shadows between layers, white torn paper edges, "
+              "same style as a cosy children's picture book papercraft. Only this one object, no text, no "
+              "letters, no faces. Plain pure white background, centered, whole object visible: ")
+PROPS = {
+    "sun": "a bright warm sun: a round golden-yellow paper circle with a lighter yellow inner circle, "
+           "surrounded by twelve pointed orange-yellow paper rays evenly spaced around it.",
+    "cloud": "one fluffy soft white paper cloud with a light blue-grey paper layer underneath for shading, "
+             "wide and puffy, side view.",
+    "cloud2": "one small rounded white paper cloud with three puffs and a pale lilac paper shadow layer "
+              "underneath.",
+    "boat": "a small classic folded origami paper boat made of white and pale lilac paper, side view, "
+            "empty, no water.",
+}
+
+
+def make_prop(name):
+    try:
+        res = client.images.generate(model="muse-image-1.0", prompt=PROP_STYLE + PROPS[name])
+        img = res.data[0]
+        out = f"static/mascot/prop_{name}.png"
+        if getattr(img, "b64_json", None):
+            with open(out, "wb") as f:
+                f.write(base64.b64decode(img.b64_json))
+        else:
+            urllib.request.urlretrieve(img.url, out)
+        cut_white_to_transparent(out)
+        return f"✅ {name}  ->  {out}"
+    except Exception as e:
+        return f"❌ {name}: {e}"
+
+
 def make(name):
+    if name in PROPS:
+        return make_prop(name)
     with open(REF, "rb") as f:
         ref = f.read()
     mime = "image/webp" if ref[:4] == b"RIFF" else "image/png"
@@ -110,8 +147,8 @@ def make(name):
 
 
 if __name__ == "__main__":
-    names = [n for n in sys.argv[1:] if n in MOODS] or list(MOODS)
-    print(f"Painting {len(names)} otter expressions with Muse Image… (about a minute)")
+    names = [n for n in sys.argv[1:] if n in MOODS or n in PROPS] or list(MOODS) + list(PROPS)
+    print(f"Painting {len(names)} pictures with Muse Image… (about a minute)")
     with ThreadPoolExecutor(max_workers=len(names)) as ex:
         for line in ex.map(make, names):
             print(line)
