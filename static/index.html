@@ -1568,7 +1568,7 @@ const FORCE_MORNING = new URLSearchParams(location.search).has("morning");
 /* Otter expressions (Duolingo-style): one per moment. Made by scripts/otter_moods.py.
    Any that don't exist yet fall back to the waving otter, so nothing ever breaks. */
 const OTTER_FILES = { wave:"otter_awake.png", sleep:"otter_sleep_small.png" };
-const OTTER_FALLBACK = { bed_sleep:"sleep", bed_yawn:"yawn", yawn:"wave" };
+const OTTER_FALLBACK = { bed_sleep:"sleep", bed_yawn:"yawn", yawn:"wave", ready:"hello", hello:"wave" };
 function otterSrc(name) { return "static/mascot/" + (OTTER_FILES[name] || `otter_${name}.png`); }
 function setOtter(img, name) {
   img.onerror = () => {
@@ -1593,7 +1593,7 @@ function usePropImg(img, name) {
 document.querySelectorAll("img.prop[data-prop]").forEach(i => usePropImg(i, i.dataset.prop));
 function otterImg(name, cls) { const i = document.createElement("img"); if (cls) i.className = cls; i.alt = ""; setOtter(i, name); return i; }
 document.querySelectorAll("img[data-otter]").forEach(i => setOtter(i, i.dataset.otter));
-["bed_sleep","bed_yawn","hello","proud","hug","curious","thumbs","oops"].forEach(n => { const i = new Image(); i.src = otterSrc(n); });
+["bed_sleep","bed_yawn","hello","ready","proud","hug","curious","thumbs","oops"].forEach(n => { const i = new Image(); i.src = otterSrc(n); });
 function setFace(name) {
   const f = $("mFace");
   if (f.dataset.otter === name) return;
@@ -1637,15 +1637,15 @@ async function openHello() {
   scene.classList.add("play");
   scene.classList.remove("awake");
   clearTimeout(openHello._a); openHello._a = setTimeout(() => scene.classList.add("awake"), 5450);
-  clearInterval(openHello._idle);
+  clearTimeout(openHello._idle);
   const waveImg = scene.querySelector(".m-wave img");
   setOtter(waveImg, "hello");
-  openHello._idle = setInterval(() => {   // Duolingo-style idle: hop for joy now and then
-    if (scene.hidden || scene.classList.contains("sheet-on")) return;
+  // "good morning!" plays once, then the otter gets fired up with its flashcards
+  openHello._idle = setTimeout(() => {
+    if (scene.hidden) return;
     const box = scene.querySelector(".m-wave");
-    setOtter(waveImg, "proud"); box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop");
-    setTimeout(() => { setOtter(waveImg, "hello"); box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop"); }, 1500);
-  }, 5200);
+    setOtter(waveImg, "ready"); box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop");
+  }, 8200);
   clearTimeout(openHello._t);
   openHello._t = setTimeout(() => { btn.classList.add("ready"); btn.focus({ preventScroll:true }); }, (lettersEnd + 0.9) * 1000);
   yCardPromise = api(`/cards/${localYesterdayStr()}`)
@@ -1782,7 +1782,7 @@ function closeMorning(focusChat) {
   scene.classList.add("leaving");
   setTimeout(async () => {
     scene.hidden = true;
-    clearInterval(openHello._idle);
+    clearTimeout(openHello._idle);
     scene.classList.remove("play", "sheet-on", "leaving", "awake");
     await load(true);
     if (focusChat) $("msg").focus();
