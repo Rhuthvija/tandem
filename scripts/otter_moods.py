@@ -48,8 +48,9 @@ MOODS = {
                 "white paper pillow, now sitting up with the blanket slipping down to its lap, stretching "
                 "both paws high above its head, mouth wide open in a big cute yawn, eyes squeezed shut. "
                 "The bed is the only object.",
-    "hello": "standing up, waving one paw high above its head with an excited big open-mouth smile, eyes "
-             "bright and sparkly, leaning forward, like it is cheerfully saying good morning to a friend.",
+    "hello": "standing on its toes and leaning forward, both paws cupped around its open mouth like it is "
+             "calling out a big cheerful 'good morning!' across a field, eyes squeezed happily shut, tail "
+             "flicked up, scarf flying. Both paws must be at its mouth, not waving.",
     "proud": "jumping for joy with both paws thrown up in the air, eyes closed in two happy upside-down "
              "curves, huge open-mouth grin, tail flicked up, pure celebration.",
     "hug": "hugging a small red paper heart to its chest with both paws, soft gentle smile, eyes "

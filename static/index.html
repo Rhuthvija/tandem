@@ -408,6 +408,8 @@
   .m-wave { opacity:0; }
   .morning.play .m-yawn { animation:fadeOut .12s linear 5.3s both; }
   .morning.awake .m-yawn { display:none; }
+  .morning.awake .m-wave.hop { animation:hop .5s steps(5) both; }
+  @keyframes hop { 0% { transform:scaleX(.2); } 40% { transform:scaleX(1.06) scaleY(.92) translateY(6px); } 70% { transform:scaleY(1.05) translateY(-18px); } 100% { opacity:1; transform:none; } }
   .morning.play .m-wave { animation:waveIn .45s steps(4) 5.3s both; }
   @keyframes waveIn { 0% { opacity:1; transform:translateY(0) scale(.94); } 50% { opacity:1; transform:translateY(-16px) scale(1.04); } 100% { opacity:1; transform:none; } }
   .cc .otter-big { width:132px; height:132px; object-fit:contain; margin:-8px auto -4px; display:block; animation:facePop .5s steps(5); }
@@ -1632,6 +1634,15 @@ async function openHello() {
   scene.classList.add("play");
   scene.classList.remove("awake");
   clearTimeout(openHello._a); openHello._a = setTimeout(() => scene.classList.add("awake"), 5450);
+  clearInterval(openHello._idle);
+  const waveImg = scene.querySelector(".m-wave img");
+  setOtter(waveImg, "hello");
+  openHello._idle = setInterval(() => {   // Duolingo-style idle: hop for joy now and then
+    if (scene.hidden || scene.classList.contains("sheet-on")) return;
+    const box = scene.querySelector(".m-wave");
+    setOtter(waveImg, "proud"); box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop");
+    setTimeout(() => { setOtter(waveImg, "hello"); box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop"); }, 1500);
+  }, 5200);
   clearTimeout(openHello._t);
   openHello._t = setTimeout(() => { btn.classList.add("ready"); btn.focus({ preventScroll:true }); }, (lettersEnd + 0.9) * 1000);
   yCardPromise = api(`/cards/${localYesterdayStr()}`)
@@ -1768,6 +1779,7 @@ function closeMorning(focusChat) {
   scene.classList.add("leaving");
   setTimeout(async () => {
     scene.hidden = true;
+    clearInterval(openHello._idle);
     scene.classList.remove("play", "sheet-on", "leaving", "awake");
     await load(true);
     if (focusChat) $("msg").focus();
