@@ -261,7 +261,7 @@
   /* ================= PAPER BOAT LOADER ================= */
   .boat-loader { position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; padding:4px 0 8px; }
   .boat-sea { position:relative; width:100%; max-width:300px; height:132px; overflow:hidden; border-radius:18px; background:linear-gradient(#EAF5FF, #F6F1FF); }
-  .boat-sea .wave { position:absolute; left:0; width:200%; height:46px; animation:waveSlide 3.2s steps(16) infinite linear; }
+  .boat-sea .wave { position:absolute; left:0; width:200%; height:46px; animation:waveSlide 3.2s steps(16) infinite; }
   .boat-sea .wave svg { display:block; width:100%; height:100%; }
   .boat-sea .wave.w1 { bottom:22px; animation-duration:5.4s; filter:drop-shadow(0 -2px 0 rgba(84,67,184,.12)); }
   .boat-sea .wave.w2 { bottom:8px; animation-duration:3.8s; animation-direction:reverse; filter:drop-shadow(0 -2px 0 rgba(84,67,184,.14)); }
@@ -302,17 +302,17 @@
   .prop { display:none; }
   .has-prop > .prop { display:block; width:100%; height:auto; }
   .has-prop > svg, .has-prop > .rays { display:none !important; }
-  .m-sun.has-prop > .prop { position:absolute; inset:0; height:100%; object-fit:contain; animation:spin 40s steps(40) infinite linear; filter:drop-shadow(0 4px 0 rgba(200,110,20,.2)); }
+  .m-sun.has-prop > .prop { position:absolute; inset:0; height:100%; object-fit:contain; animation:spin 40s steps(40) infinite; filter:drop-shadow(0 4px 0 rgba(200,110,20,.2)); }
   .boat.has-prop > .prop { position:relative; width:120px; }
   .boat-loader.small .boat.has-prop > .prop { width:52px; }
-  .m-sun .rays { position:absolute; inset:0; animation:spin 30s steps(60) infinite linear; }
+  .m-sun .rays { position:absolute; inset:0; animation:spin 30s steps(60) infinite; }
   .m-sun svg { position:absolute; inset:0; width:100%; height:100%; filter:drop-shadow(0 3px 0 rgba(200,110,20,.25)); }
   @keyframes spin { to { transform:rotate(360deg); } }
   .m-cloud { position:absolute; left:0; z-index:2; filter:drop-shadow(0 4px 0 rgba(60,80,140,.12)); }
   .m-cloud svg { display:block; width:100%; }
-  .m-cloud.c1 { top:12vh; width:150px; animation:drift 70s steps(140) -36s infinite linear; }
-  .m-cloud.c2 { top:25vh; width:100px; animation:drift 54s steps(108) -42s infinite linear; opacity:.95; }
-  .m-cloud.c3 { top:5vh; width:118px; animation:drift 82s steps(160) -14s infinite linear; }
+  .m-cloud.c1 { top:12vh; width:150px; animation:drift 70s steps(140) -36s infinite; }
+  .m-cloud.c2 { top:25vh; width:100px; animation:drift 54s steps(108) -42s infinite; opacity:.95; }
+  .m-cloud.c3 { top:5vh; width:118px; animation:drift 82s steps(160) -14s infinite; }
   @keyframes drift { from { transform:translateX(-30vw); } to { transform:translateX(110vw); } }
   .m-birds { position:absolute; top:17vh; left:0; width:56px; z-index:2; opacity:0; }
   .m-birds svg { display:block; width:100%; }
@@ -367,7 +367,7 @@
   .morning.play .m-flowers span:nth-child(1){animation-delay:4.0s} .morning.play .m-flowers span:nth-child(2){animation-delay:4.15s}
   .morning.play .m-flowers span:nth-child(3){animation-delay:4.3s} .morning.play .m-flowers span:nth-child(4){animation-delay:4.45s} .morning.play .m-flowers span:nth-child(5){animation-delay:4.6s}
   @keyframes pop { 0% { transform:scale(0) rotate(-40deg); } 70% { transform:scale(1.25) rotate(8deg); } 100% { transform:scale(1); } }
-  .morning.play .m-birds { animation:birdsFly 16s steps(80) 3.4s infinite linear; }
+  .morning.play .m-birds { animation:birdsFly 16s steps(80) 3.4s infinite; }
   .morning.play .m-zs { animation:fadeOut .4s steps(3) 3.1s both; }
   .morning.play .m-sleep-wrap { animation:sleepBob 3.6s steps(12) infinite, flipOut .3s steps(3) 3.4s forwards; }
   @keyframes flipOut { to { transform:scaleX(0) translateY(-6px); } }
@@ -399,6 +399,7 @@
   .m-yawn, .m-wave { position:absolute; inset:0; }
   .m-wave { opacity:0; }
   .morning.play .m-yawn { animation:fadeOut .12s linear 5.3s both; }
+  .morning.awake .m-yawn { display:none; }
   .morning.play .m-wave { animation:waveIn .45s steps(4) 5.3s both; }
   @keyframes waveIn { 0% { opacity:1; transform:translateY(0) scale(.94); } 50% { opacity:1; transform:translateY(-16px) scale(1.04); } 100% { opacity:1; transform:none; } }
   .cc .otter-big { width:132px; height:132px; object-fit:contain; margin:-8px auto -4px; display:block; animation:facePop .5s steps(5); }
@@ -1621,6 +1622,8 @@ async function openHello() {
   scene.hidden = false;
   void scene.offsetWidth;            // restart every animation from frame one
   scene.classList.add("play");
+  scene.classList.remove("awake");
+  clearTimeout(openHello._a); openHello._a = setTimeout(() => scene.classList.add("awake"), 5450);
   clearTimeout(openHello._t);
   openHello._t = setTimeout(() => { btn.classList.add("ready"); btn.focus({ preventScroll:true }); }, (lettersEnd + 0.9) * 1000);
   yCardPromise = api(`/cards/${localYesterdayStr()}`)
@@ -1757,7 +1760,7 @@ function closeMorning(focusChat) {
   scene.classList.add("leaving");
   setTimeout(async () => {
     scene.hidden = true;
-    scene.classList.remove("play", "sheet-on", "leaving");
+    scene.classList.remove("play", "sheet-on", "leaving", "awake");
     await load(true);
     if (focusChat) $("msg").focus();
   }, 950);
