@@ -11,8 +11,8 @@ Scene props (sun, cloud, cloud2, boat) are painted too: python scripts/otter_moo
 Where each one shows up:
   bed_sleep  morning intro: fast asleep in its little paper bed
   bed_yawn   morning intro: sitting up in bed, stretching and yawning
-  greet      morning intro: out of bed, waving, paper-star sparkle eyes
-  hello      after tapping Continue: calling out "good morning!"
+  hello      morning intro: out of bed, calling out "good morning!" (plays once)
+  ready      morning intro: fired up with flashcards, paper-star sparkle eyes (stays)
   ready      morning intro: fired up with a stack of flashcards, ready to work
   proud    yesterday's card when you finished everything; completion pop-up
   hug      yesterday's card on a lighter day; "running low" mornings
@@ -54,12 +54,11 @@ MOODS = {
     "hello": "standing on its toes and leaning forward, both paws cupped around its open mouth like it is "
              "calling out a big cheerful 'good morning!' across a field, eyes squeezed happily shut, tail "
              "flicked up, scarf flying. Both paws must be at its mouth, not waving.",
-    "greet": "standing up, waving one paw high above its head with an excited big open-mouth smile, leaning "
-             "forward happily. Its eyes sparkle: each eye is a small dark paper circle with a tiny four-point "
-             "star cut from matte cream paper glued on top (paper sparkle, not shiny, not glossy).",
     "ready": "standing tall and fired up, excited and motivated to get to work, hugging a small stack of "
-             "colourful paper flashcards (blank, no writing) to its chest with one paw and giving a determined "
-             "fist pump with the other, big eager grin, eyes bright and sparkly, scarf flying.",
+             "colourful paper flashcards (blank, no writing) to its chest with one paw and raising the other "
+             "paw high in a determined fist pump, big eager grin, scarf flying. Its eyes sparkle: each eye is a "
+             "small dark paper circle with a tiny four-point star cut from matte cream paper glued on top "
+             "(paper sparkle, not shiny, not glossy).",
     "proud": "jumping for joy with both paws thrown up in the air, eyes closed in two happy upside-down "
              "curves, huge open-mouth grin, tail flicked up, pure celebration.",
     "hug": "hugging a small red paper heart to its chest with both paws, soft gentle smile, eyes "

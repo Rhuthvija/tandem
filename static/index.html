@@ -539,7 +539,7 @@
     <div class="m-otter" aria-hidden="true">
       <div class="m-sleep-wrap"><img data-otter="bed_sleep" alt=""></div>
       <div class="m-zs"><span>z</span><span>z</span><span>Z</span></div>
-      <div class="m-awake-wrap"><div class="m-yawn"><img data-otter="bed_yawn" alt=""></div><div class="m-wave"><img data-otter="greet" alt=""></div></div>
+      <div class="m-awake-wrap"><div class="m-yawn"><img data-otter="bed_yawn" alt=""></div><div class="m-wave"><img data-otter="hello" alt=""></div></div>
     </div>
     <div class="m-note">
       <div class="m-date" id="mDate"></div>
@@ -1568,7 +1568,7 @@ const FORCE_MORNING = new URLSearchParams(location.search).has("morning");
 /* Otter expressions (Duolingo-style): one per moment. Made by scripts/otter_moods.py.
    Any that don't exist yet fall back to the waving otter, so nothing ever breaks. */
 const OTTER_FILES = { wave:"otter_awake.png", sleep:"otter_sleep_small.png" };
-const OTTER_FALLBACK = { bed_sleep:"sleep", bed_yawn:"yawn", yawn:"wave", ready:"hello", greet:"hello", hello:"wave" };
+const OTTER_FALLBACK = { bed_sleep:"sleep", bed_yawn:"yawn", yawn:"wave", ready:"hello", hello:"wave" };
 function otterSrc(name) { return "static/mascot/" + (OTTER_FILES[name] || `otter_${name}.png`); }
 function setOtter(img, name) {
   img.onerror = () => {
@@ -1593,7 +1593,7 @@ function usePropImg(img, name) {
 document.querySelectorAll("img.prop[data-prop]").forEach(i => usePropImg(i, i.dataset.prop));
 function otterImg(name, cls) { const i = document.createElement("img"); if (cls) i.className = cls; i.alt = ""; setOtter(i, name); return i; }
 document.querySelectorAll("img[data-otter]").forEach(i => setOtter(i, i.dataset.otter));
-["bed_sleep","bed_yawn","greet","hello","proud","hug","curious","thumbs","oops"].forEach(n => { const i = new Image(); i.src = otterSrc(n); });
+["bed_sleep","bed_yawn","hello","ready","proud","hug","curious","thumbs","oops"].forEach(n => { const i = new Image(); i.src = otterSrc(n); });
 function setFace(name) {
   const f = $("mFace");
   if (f.dataset.otter === name) return;
@@ -1639,7 +1639,13 @@ async function openHello() {
   clearTimeout(openHello._a); openHello._a = setTimeout(() => scene.classList.add("awake"), 5450);
   clearTimeout(openHello._idle);
   const waveImg = scene.querySelector(".m-wave img");
-  setOtter(waveImg, "greet");
+  setOtter(waveImg, "hello");
+  // "good morning!" plays once, then the otter gets fired up with its flashcards
+  openHello._idle = setTimeout(() => {
+    if (scene.hidden || scene.classList.contains("sheet-on")) return;
+    const box = scene.querySelector(".m-wave");
+    setOtter(waveImg, "ready"); box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop");
+  }, 8400);
   clearTimeout(openHello._t);
   openHello._t = setTimeout(() => { btn.classList.add("ready"); btn.focus({ preventScroll:true }); }, (lettersEnd + 0.9) * 1000);
   yCardPromise = api(`/cards/${localYesterdayStr()}`)
@@ -1651,7 +1657,7 @@ $("mContinue").onclick = () => {
   $("mContinue").classList.remove("ready");
   // yay! the otter jumps for joy, then the journal page slides up
   const scene = $("hello"), box = scene.querySelector(".m-wave");
-  setOtter(box.querySelector("img"), "hello");
+  setOtter(box.querySelector("img"), "proud");
   box.classList.remove("hop"); void box.offsetWidth; box.classList.add("hop");
   setTimeout(morningYesterday, 750);
 };
