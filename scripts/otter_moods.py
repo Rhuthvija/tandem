@@ -38,7 +38,8 @@ STYLE = ("Handmade paper cut-out illustration made of layered torn construction 
          "grain, subtle drop shadows between paper layers. The exact same small, chubby purple sea otter "
          "character from the reference image: same purple paper body, same cream paper face and belly, "
          "same little orange paper scarf, same paper whiskers. Expressive cartoon mascot, like an app "
-         "mascot sticker. Only the otter, no other objects unless named, no text, no letters. "
+         "mascot sticker. Eyes are plain little dots or curves cut from dark paper, like the reference: "
+         "no sparkles, no stars, no shine, no glossy highlights, no realistic eyes. Only the otter, no other objects unless named, no text, no letters. "
          "Plain pure white background, centered, full body visible. Pose and expression: ")
 
 MOODS = {
