@@ -285,6 +285,18 @@
   .boat-loader.small .boat-cap { text-align:left; font-size:13px; color:var(--muted); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .boat-loader.small .boat-cap b { color:var(--brand); display:block; }
   .paint-ph { padding:18px; }
+  /* big version: the planning moment in the morning */
+  .boat-loader.big { padding:6px 0 4px; gap:14px; }
+  .boat-loader.big .boat-sea { max-width:560px; height:min(46vh, 330px); border-radius:22px; }
+  .boat-loader.big .boat-sea .wave { height:30%; }
+  .boat-loader.big .boat-sea .wave.w1 { bottom:24%; } .boat-loader.big .boat-sea .wave.w2 { bottom:11%; } .boat-loader.big .boat-sea .wave.w3 { bottom:-4%; }
+  .boat-loader.big .boat { width:min(42vh, 280px); margin-left:calc(min(42vh, 280px) / -2); bottom:22%; }
+  .boat-loader.big .boat svg, .boat-loader.big .boat.has-prop > .prop { width:100%; }
+  .boat-loader.big .boat img:not(.prop) { width:44%; left:28%; bottom:46%; }
+  .boat-loader.big .boat-cap { font-size:17px; }
+  .boat.has-prop img:not(.prop) { left:30%; width:42%; bottom:44%; }
+  .morning.planning .m-face { opacity:0 !important; }
+  .morning.planning .m-sheet { min-height:min(70vh, 540px); }
   .paint-ph .boat-sea { max-width:260px; }
 
   /* ================= MORNING SCENE ================= */
@@ -396,9 +408,9 @@
   @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
 
   /* the journal page that slides up over the scene */
-  .m-sheet { position:absolute; left:50%; bottom:0; z-index:9; width:min(100%, 460px); max-height:calc(100% - 96px); display:flex; flex-direction:column; background:var(--paper); background-image:var(--grain); border-radius:22px 22px 0 0; box-shadow:0 -3px 0 #EADFC8, 0 -18px 40px rgba(30,27,46,.25); transform:translate(-50%, 135%) rotate(2deg); transition:transform .7s steps(7); }
+  .m-sheet { position:absolute; left:50%; top:calc(50% + 34px); z-index:9; width:min(calc(100% - 24px), 480px); max-height:calc(100% - 128px); display:flex; flex-direction:column; background:var(--paper); background-image:var(--grain); border-radius:22px; box-shadow:0 3px 0 #EADFC8, 0 18px 44px rgba(30,27,46,.28); transform:translate(-50%, 100vh) rotate(2deg); transition:transform .7s steps(7); }
   .m-sheet::before { content:""; position:absolute; top:-10px; left:0; right:0; height:12px; background:var(--paper); clip-path:polygon(0 100%,0 60%,4% 20%,9% 70%,14% 30%,20% 75%,26% 25%,32% 65%,38% 15%,44% 70%,50% 30%,56% 75%,62% 20%,68% 65%,74% 25%,80% 70%,86% 30%,92% 65%,97% 20%,100% 55%,100% 100%); }
-  .morning.sheet-on .m-sheet { transform:translate(-50%, 0) rotate(0); }
+  .morning.sheet-on .m-sheet { transform:translate(-50%, -50%) rotate(0); }
   .morning.sheet-on .m-note, .morning.sheet-on .m-continue { opacity:0 !important; pointer-events:none; animation:none; transition:opacity .2s 0s !important; }
   .morning.sheet-on .m-stage { justify-content:flex-start; padding-top:1.5vh; }
   .morning.sheet-on .m-otter { opacity:0; transform:scale(.4); transform-origin:50% 0; }
@@ -446,7 +458,7 @@
   .m-reply img { width:42px; height:42px; object-fit:contain; flex-shrink:0; }
   .m-reply div { background:var(--brand-soft); border-radius:4px 16px 16px 16px; padding:12px 14px; font-size:15px; line-height:1.45; color:var(--ink); }
   .m-sheet .hrow { animation:rowIn .45s steps(5) both; animation-delay:calc(var(--i, 0) * 80ms + .2s); }
-  .morning.leaving .m-sheet { transform:translate(-50%, 135%) rotate(-2deg); }
+  .morning.leaving .m-sheet { transform:translate(-50%, 100vh) rotate(-2deg); }
   .morning.leaving { animation:fadeOut .6s steps(6) .35s both; }
   @media (prefers-reduced-motion: reduce) {
     .morning *, .morning, .boat-loader *, .cascade .item, .modal > *, .page-in, .item input { animation-duration:.01s !important; animation-delay:0s !important; animation-iteration-count:1 !important; transition:none !important; }
@@ -1743,15 +1755,19 @@ function morningMood() {
 
 async function morningPlan(energy) {
   setFace(energy === "low" ? "hug" : "curious");
+  $("hello").classList.add("planning");
   turnPage(body => {
     body.append(el("div", "m-kicker", "Planning together"));
-    body.append(boatLoader(energy === "low" ? "Keeping today gentle…" : "Tandem is paddling through your plans…"));
+    const b = boatLoader(energy === "low" ? "Keeping today gentle…" : "Tandem is paddling through your plans…");
+    b.classList.add("big");
+    body.append(b);
   });
   try {
     const r = await api("/huddle", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ energy }) });
     const data = await readJson(r);
     if (!r.ok) throw new Error(data.detail || "error");
     const today = await readJson(await api("/today"));
+    $("hello").classList.remove("planning");
     setFace("thumbs");
     turnPage(body => {
       body.append(el("div", "m-kicker", "Today's plan"));
@@ -1768,6 +1784,7 @@ async function morningPlan(energy) {
       body.append(go, ch);
     });
   } catch {
+    $("hello").classList.remove("planning");
     setFace("oops");
     turnPage(body => {
       body.append(el("h2", null, "The boat hit a little wave 🌊"));
@@ -1787,7 +1804,7 @@ function closeMorning(focusChat) {
   setTimeout(async () => {
     scene.hidden = true;
     clearTimeout(openHello._idle);
-    scene.classList.remove("play", "sheet-on", "leaving", "awake");
+    scene.classList.remove("play", "sheet-on", "leaving", "awake", "planning");
     await load(true);
     if (focusChat) $("msg").focus();
   }, 950);
