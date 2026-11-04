@@ -4,6 +4,7 @@
 
 Built solo for the **Meta Global AI Developer Hackathon** (Oct 26 – Nov 4, 2026).
 Track: **Indie Developer** · Problem statement: **Build for Your World**
+🎥 **Demo video (2 min):** [Watch on Google Drive](https://drive.google.com/file/d/1C8nsTCS8l7VxVcxaWwrCUaPKvGTDy9cS/view?usp=sharing)
 
 ---
 
