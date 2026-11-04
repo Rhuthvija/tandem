@@ -1856,8 +1856,7 @@ function maybeAutoHuddle(data) {
   const hhmm = new Date().toTimeString().slice(0, 5);
   if (hhmm < wake || hhmm >= "12:00") return;
   huddleAutoShown = true;
-  if (!helloShownToday()) openHello();
-  else openHuddle();
+  openHello();   // mornings always get the full paper wake-up, until the day is planned
 }
 
 let wakeShown = "";
